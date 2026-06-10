@@ -1,0 +1,189 @@
+<Window x:Class="CrestronHomeDriverFeedInstaller.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="CrestronHomeDriverFeedInstaller" Height="760" Width="1200" MinHeight="700" MinWidth="1100">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <Style x:Key="StatusTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="Black" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsStatusError}" Value="True">
+                    <Setter Property="Foreground" Value="Red" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="0.85*" />
+            <ColumnDefinition Width="1.2*" />
+            <ColumnDefinition Width="1.2*" />
+        </Grid.ColumnDefinitions>
+
+        <GroupBox Header="NuGet feed" Grid.Row="0" Grid.Column="0" Margin="0,0,8,8">
+            <Grid Margin="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Text="Feed URL" Margin="0,0,0,4" />
+                <TextBlock Text="Search" Grid.Row="1" Margin="0,8,0,4" />
+
+                <TextBox Grid.Column="1" Grid.ColumnSpan="2" Margin="8,0,0,0" Text="{Binding FeedUrl, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox Grid.Row="1" Grid.Column="1" Margin="8,8,8,0" Text="{Binding SearchTerm, UpdateSourceTrigger=PropertyChanged}" />
+                <Button Grid.Row="1" Grid.Column="2" Margin="0,8,0,0" Padding="12,4" Command="{Binding SearchCommand}" Content="Search" />
+                <CheckBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="8,8,0,0" IsChecked="{Binding OnlyV1CompliantPackages}" Content="Only search for v1 compliant packages" />
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Header="Processor connection" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Margin="8,0,0,8">
+            <Grid Margin="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Text="Processor" VerticalAlignment="Center" />
+                <ComboBox Grid.Column="1" Grid.ColumnSpan="2" Margin="8,0,12,8" ItemsSource="{Binding SavedProcessors}" SelectedItem="{Binding SelectedSavedProcessor}" DisplayMemberPath="Label" />
+                <Button Grid.Column="3" Margin="0,0,8,8" Padding="12,4" Command="{Binding DiscoverProcessorsCommand}" Content="Discover" />
+                <Button Grid.Column="4" Margin="0,0,8,8" Padding="12,4" Command="{Binding AddProcessorCommand}" Content="New" />
+                <Button Grid.Column="5" Margin="0,0,0,8" Padding="12,4" Command="{Binding DeleteProcessorCommand}" Content="Delete" />
+
+                <TextBlock Grid.Row="1" Text="Display name" VerticalAlignment="Center" />
+                <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="5" Margin="8,0,0,8" Text="{Binding ProcessorDisplayName, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Grid.Row="2" Text="Host" VerticalAlignment="Center" />
+                <TextBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="5" Margin="8,0,0,8" Text="{Binding ProcessorHost, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Grid.Row="3" Text="Username" VerticalAlignment="Center" />
+                <TextBox Grid.Row="3" Grid.Column="1" Margin="8,0,12,8" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Grid.Row="3" Grid.Column="2" Text="Password" VerticalAlignment="Center" />
+                <PasswordBox x:Name="PasswordBox" Grid.Row="3" Grid.Column="3" Grid.ColumnSpan="3" Margin="8,0,0,8" PasswordChanged="PasswordBox_OnPasswordChanged" />
+
+                <CheckBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="5" Margin="8,0,0,0" VerticalAlignment="Center" IsChecked="{Binding RememberCredentials}" Content="Remember credentials for this processor" />
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Header="Packages" Grid.Row="1" Grid.Column="0" Margin="0,0,8,8">
+            <Grid Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="180" />
+                </Grid.RowDefinitions>
+
+                <DataGrid ItemsSource="{Binding SearchResults}" SelectedItem="{Binding SelectedPackage}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="2*" />
+                        <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="*" />
+                        <DataGridTextColumn Header="Authors" Binding="{Binding Authors}" Width="1.5*" />
+                        <DataGridTextColumn Header="Downloads" Binding="{Binding DownloadCount}" Width="*" />
+                        <DataGridTemplateColumn Header="Info" Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Padding="8,2" Content="Info" Click="PackageInfoButton_OnClick" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <Button Grid.Row="1" Margin="0,8,0,0" Padding="12,4" HorizontalAlignment="Left" Command="{Binding InspectCommand}" Content="Download and inspect selected package" />
+
+                <TextBlock Grid.Row="2" Margin="0,12,0,4" FontWeight="SemiBold" Text="Cached packages" />
+                <Grid Grid.Row="3">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <DataGrid ItemsSource="{Binding CachedPackages}" SelectedItem="{Binding SelectedCachedPackage}" AutoGenerateColumns="False" SelectionMode="Extended">
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="Use" Binding="{Binding IsSelected}" Width="Auto" />
+                            <DataGridTextColumn Header="Package" Binding="{Binding PackageId}" Width="2*" />
+                            <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="*" />
+                            <DataGridTemplateColumn Header="Info" Width="Auto">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Padding="8,2" Content="Info" Click="CachedPackageInfoButton_OnClick" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel Grid.Row="1" Margin="0,8,0,0" Orientation="Horizontal">
+                        <Button Padding="12,4" Command="{Binding UseCachedPackageCommand}" Content="Use selected cached package(s)" />
+                        <Button Margin="8,0,0,0" Padding="12,4" Command="{Binding DeleteCachedPackageCommand}" Content="Delete selected cached package(s)" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Header="Package details" Grid.Row="1" Grid.Column="1" Margin="0,0,8,8">
+            <Grid Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Selected package" Margin="0,0,0,8" FontWeight="SemiBold" />
+                <TextBox Grid.Row="1" Margin="0,0,0,8" Text="{Binding SelectedPackageDetails}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" IsReadOnly="True" MinHeight="120" />
+                <TextBlock Grid.Row="2" Text="Cached package" Margin="0,0,0,8" FontWeight="SemiBold" />
+                <TextBox Grid.Row="3" Text="{Binding SelectedCachedPackageDetails}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" IsReadOnly="True" />
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Header="crestron-driver-package.json" Grid.Row="1" Grid.Column="2" Margin="0,0,0,8">
+            <Grid Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBox Text="{Binding StagedDriverPackagePath}" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True" Margin="0,0,0,8" />
+                <TextBox Grid.Row="1" Text="{Binding CrestronDriverPackageJsonContent}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" IsReadOnly="True" />
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Header="Discovery diagnostics" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,8" Visibility="{Binding ShowDiscoveryDiagnostics, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid Margin="8">
+                <TextBox Height="120" MaxHeight="120" Text="{Binding DiscoveryDiagnostics}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="Wrap" IsReadOnly="True" />
+            </Grid>
+        </GroupBox>
+
+        <DockPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3">
+            <Button DockPanel.Dock="Right" Padding="16,6" Command="{Binding InstallCommand}" Content="Upload to processor" />
+            <CheckBox DockPanel.Dock="Right" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding ShowDiscoveryDiagnostics}" Content="Show discovery diagnostics" />
+            <TextBlock VerticalAlignment="Center" Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,0,12,0" Style="{StaticResource StatusTextStyle}" />
+        </DockPanel>
+    </Grid>
+</Window>
+

@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CrestronHomeDriverFeedInstaller.App/CrestronHomeDriverFeedInstaller.App.csproj" />
+    <Project Path="src/CrestronHomeDriverFeedInstaller.Core/CrestronHomeDriverFeedInstaller.Core.csproj" />
+  </Folder>
+  <Project Path="../OverkizCrestronDriver/OverKizCrestronDriver/OverKizCrestronDriver.csproj">
+    <Build Solution="Debug|*" Project="false" />
+  </Project>
+  <Project Path="../WeatherLinkLiveCrestronDriver/WeatherLinkLiveCrestronDriver/WeatherLinkLiveCrestronDriver.csproj">
+    <Build Solution="Debug|*" Project="false" />
+  </Project>
+  <Project Path="../WiserHeatCrestronDriver/WiserHeatCrestronDriver/WiserHeatCrestronDriver.csproj">
+    <Build Solution="Debug|*" Project="false" />
+  </Project>
+</Solution>
+

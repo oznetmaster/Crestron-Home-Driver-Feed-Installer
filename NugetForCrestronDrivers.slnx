@@ -1,6 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/NugetForCrestronDrivers.App/NugetForCrestronDrivers.App.csproj" />
-    <Project Path="src/NugetForCrestronDrivers.Core/NugetForCrestronDrivers.Core.csproj" />
-  </Folder>
-</Solution>
