@@ -43,26 +43,9 @@ jobs:
 
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.release_tag != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event.inputs.release_tag || github.ref_name }}
-          RELEASE_ASSET_PATH: .\installer\bin\Release\Crestron Home Driver Feed Installer.exe
-          RELEASE_ASSET_NAME: Crestron Home Driver Feed Installer.exe
-        shell: pwsh
-        run: |
-          gh release create "$env:RELEASE_TAG" --repo "$env:GITHUB_REPOSITORY" --generate-notes 2>$null
-
-          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
-          $existingAssets = @($release.assets | Where-Object { $_.name -in @($env:RELEASE_ASSET_NAME, 'Crestron.Home.Driver.Feed.Installer.exe') })
-
-          foreach ($asset in $existingAssets) {
-            gh api --method DELETE "repos/$env:GITHUB_REPOSITORY/releases/assets/$($asset.id)"
-          }
-
-          $uploadUrl = ($release.upload_url -replace '\{\?name,label\}$', '')
-          $assetName = [Uri]::EscapeDataString($env:RELEASE_ASSET_NAME)
-          $assetLabel = [Uri]::EscapeDataString($env:RELEASE_ASSET_NAME)
-
-          $assetUploadUri = "$uploadUrl?name=$assetName&label=$assetLabel"
-
-          Invoke-RestMethod -Method Post -Uri $assetUploadUri -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/vnd.github+json' } -ContentType 'application/octet-stream' -InFile $env:RELEASE_ASSET_PATH
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
+          files: installer\bin\Release\Crestron Home Driver Feed Installer.exe
+          generate_release_notes: true
+          overwrite_files: true
