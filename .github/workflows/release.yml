@@ -46,6 +46,25 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event.inputs.release_tag || github.ref_name }}
+          RELEASE_ASSET_PATH: .\installer\bin\Release\Crestron Home Driver Feed Installer.exe
+          RELEASE_ASSET_NAME: Crestron Home Driver Feed Installer.exe
+        shell: pwsh
         run: |
           gh release create "$env:RELEASE_TAG" --repo "$env:GITHUB_REPOSITORY" --generate-notes 2>$null
-          gh release upload "$env:RELEASE_TAG" ".\installer\bin\Release\Crestron Home Driver Feed Installer.exe#Crestron Home Driver Feed Installer.exe" --repo "$env:GITHUB_REPOSITORY" --clobber
+
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
+          $existingAssets = @($release.assets | Where-Object { $_.name -in @($env:RELEASE_ASSET_NAME, 'Crestron.Home.Driver.Feed.Installer.exe') })
+
+          foreach ($asset in $existingAssets) {
+            gh api --method DELETE "repos/$env:GITHUB_REPOSITORY/releases/assets/$($asset.id)"
+          }
+
+          $uploadUrl = ($release.upload_url -replace '\{\?name,label\}$', '')
+          $assetName = [Uri]::EscapeDataString($env:RELEASE_ASSET_NAME)
+          $assetLabel = [Uri]::EscapeDataString($env:RELEASE_ASSET_NAME)
+
+          Invoke-RestMethod \
+            -Method Post \
+            -Uri "$uploadUrl?name=$assetName&label=$assetLabel" \
+            -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/vnd.github+json'; 'Content-Type' = 'application/octet-stream' } \
+            -InFile $env:RELEASE_ASSET_PATH
