@@ -110,7 +110,7 @@ The bootstrapper project:
 - checks for the required .NET Desktop Runtime
 - installs the runtime when needed before installing the app MSI
 
-For source-based release builds, build the bootstrapper project in the solution and publish `installer\bin\Release\Crestron Home Driver Feed Installer.exe` as the primary release asset. The companion `installer\bin\Release\Crestron Home Driver Feed Installer.msi` can also be attached for advanced/manual installation scenarios.
+For source-based release builds, build the bootstrapper project in the solution and publish `installer\bin\Release\Crestron Home Driver Feed Installer.exe` as the release asset.
 
 The Windows installer project is located at:
 

@@ -32,15 +32,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Crestron Home Driver Feed Installer Release Assets
-          path: |
-            installer\bin\Release\Crestron Home Driver Feed Installer.exe
-            installer\bin\Release\Crestron Home Driver Feed Installer.msi
+          path: installer\bin\Release\Crestron Home Driver Feed Installer.exe
 
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            installer\bin\Release\Crestron Home Driver Feed Installer.exe
-            installer\bin\Release\Crestron Home Driver Feed Installer.msi
+          files: installer\bin\Release\Crestron Home Driver Feed Installer.exe
           generate_release_notes: true
