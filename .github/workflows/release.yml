@@ -43,9 +43,9 @@ jobs:
 
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.release_tag != ''
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
-          files: installer\bin\Release\Crestron Home Driver Feed Installer.exe
-          generate_release_notes: true
-          overwrite_files: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.inputs.release_tag || github.ref_name }}
+        run: |
+          gh release create "$env:RELEASE_TAG" --repo "$env:GITHUB_REPOSITORY" --generate-notes 2>$null
+          gh release upload "$env:RELEASE_TAG" ".\installer\bin\Release\Crestron Home Driver Feed Installer.exe#Crestron Home Driver Feed Installer.exe" --repo "$env:GITHUB_REPOSITORY" --clobber
