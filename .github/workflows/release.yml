@@ -63,8 +63,6 @@ jobs:
           $assetName = [Uri]::EscapeDataString($env:RELEASE_ASSET_NAME)
           $assetLabel = [Uri]::EscapeDataString($env:RELEASE_ASSET_NAME)
 
-          Invoke-RestMethod \
-            -Method Post \
-            -Uri "$uploadUrl?name=$assetName&label=$assetLabel" \
-            -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/vnd.github+json'; 'Content-Type' = 'application/octet-stream' } \
-            -InFile $env:RELEASE_ASSET_PATH
+          $assetUploadUri = "$uploadUrl?name=$assetName&label=$assetLabel"
+
+          Invoke-RestMethod -Method Post -Uri $assetUploadUri -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/vnd.github+json' } -ContentType 'application/octet-stream' -InFile $env:RELEASE_ASSET_PATH
