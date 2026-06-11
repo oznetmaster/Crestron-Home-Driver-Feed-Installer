@@ -166,15 +166,31 @@ public sealed class NuGetPackageService : INuGetPackageService
 		{
 		var repository = CreateRepository (feedUrl);
 		var metadataResource = await repository.GetResourceAsync<PackageMetadataResource> (cancellationToken);
-		var cache = new SourceCacheContext ();
-		var metadata = (await metadataResource.GetMetadataAsync (packageId, includePrerelease: false, includeUnlisted: false, cache, NullLogger.Instance, cancellationToken)).ToArray ();
-		if (metadata.Length == 0)
+		var cache = new SourceCacheContext
 			{
-			return null;
+			NoCache = true,
+			DirectDownload = true,
+			RefreshMemoryCache = true
+			};
+		var metadata = (await metadataResource.GetMetadataAsync (packageId, includePrerelease: false, includeUnlisted: false, cache, NullLogger.Instance, cancellationToken)).ToArray ();
+		var latestVersion = metadata
+			.Select (item => item.Identity.Version)
+			.OrderByDescending (version => version)
+			.FirstOrDefault ()?
+			.ToNormalizedString ();
+
+		if (!string.IsNullOrWhiteSpace (latestVersion))
+			{
+			return latestVersion;
 			}
 
-		return metadata
-			.Select (item => item.Identity.Version)
+		var searchResource = await repository.GetResourceAsync<PackageSearchResource> (cancellationToken);
+		var searchResults = (await searchResource.SearchAsync (packageId, new SearchFilter (includePrerelease: false), 0, SEARCH_PAGE_SIZE, NullLogger.Instance, cancellationToken))
+			.Where (result => string.Equals (result.Identity.Id, packageId, StringComparison.OrdinalIgnoreCase))
+			.ToArray ();
+
+		return searchResults
+			.Select (result => result.Identity.Version)
 			.OrderByDescending (version => version)
 			.FirstOrDefault ()?
 			.ToNormalizedString ();

@@ -157,6 +157,7 @@
                                     </Trigger>
                                     <DataTrigger Binding="{Binding HasNewerVersionAvailable}" Value="True">
                                         <Setter Property="Background" Value="LightGoldenrodYellow" />
+                                        <Setter Property="ToolTip" Value="A newer driver version is available." />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>

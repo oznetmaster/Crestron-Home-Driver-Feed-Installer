@@ -24,7 +24,7 @@ Crestron Home Driver Feed Installer helps you:
 - cache downloaded packages locally
 - validate cached packages against the latest version on the feed
 - highlight cached packages with updates available
-- inspect `crestron-driver-package.json` content before upload
+- inspect package entries, `crestron-driver-package.json`, and package `README.md` content before upload
 - manage saved processor connections and credentials
 - upload the selected driver package to a Crestron Home processor
 
@@ -34,7 +34,7 @@ Crestron Home Driver Feed Installer helps you:
 - support for standard NuGet v3 feeds
 - multi-select package search and cache management
 - local package cache with update detection
-- package detail and manifest inspection
+- package detail inspection with entries, manifest, and README tabs
 - processor discovery support
 - saved processor credentials
 - direct upload workflow for cached driver packages
@@ -132,7 +132,7 @@ dotnet build .\installer\CrestronHomeDriverFeedInstaller.Setup.wixproj
 2. Search for a driver package.
 3. Optionally limit results to v1-compliant packages.
 4. Inspect one or more packages.
-5. Review package details and `crestron-driver-package.json`.
+5. Review package details, entries, `crestron-driver-package.json`, and `README.md`.
 6. Select or discover a processor.
 7. Upload the selected cached package to the processor.
 8. Use the cached package update indicators to refresh outdated packages later.

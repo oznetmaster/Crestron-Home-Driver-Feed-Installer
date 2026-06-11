@@ -3,6 +3,7 @@
 
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Threading;
 
 using CrestronHomeDriverFeedInstaller.App.Infrastructure;
 using CrestronHomeDriverFeedInstaller.Core.Abstractions;
@@ -10,13 +11,14 @@ using CrestronHomeDriverFeedInstaller.Core.Models;
 
 namespace CrestronHomeDriverFeedInstaller.App.ViewModels;
 
-public sealed class MainViewModel : ObservableObject
+public sealed class MainViewModel : ObservableObject, IDisposable
 	{
 	private static readonly string _selectedPackageInfoMessage = "Select Info on a package entry to view more details.";
 	private static readonly string _selectedCachedPackageInfoMessage = "Select Info on a cached package entry to view more details.";
 	private static readonly string _packageEntriesMessage = "Inspect or stage a package to view its entries.";
 	private static readonly string _manifestMessage = "Inspect or stage a package to view crestron-driver-package.json.";
 	private static readonly string _readmeMessage = "Inspect or stage a package to view README.md.";
+	private static readonly TimeSpan _cachedPackageRefreshInterval = TimeSpan.FromMinutes (2);
 
 	private readonly INuGetPackageService nugetPackageService;
 	private readonly IPackageInspectionService packageInspectionService;
@@ -24,6 +26,7 @@ public sealed class MainViewModel : ObservableObject
 	private readonly ICredentialStore credentialStore;
 	private readonly IProcessorDiscoveryService processorDiscoveryService;
 	private readonly ISftpDriverDeploymentService sftpDriverDeploymentService;
+	private readonly CancellationTokenSource cacheRefreshCancellationTokenSource = new ();
 	private AppSettings appSettings = new ();
 	private string cacheDirectory = new AppSettings ().CacheDirectory;
 	private string feedUrl = "https://api.nuget.org/v3/index.json";
@@ -52,6 +55,7 @@ public sealed class MainViewModel : ObservableObject
 	private IReadOnlyList<CachedPackageInfoViewModel> selectedCachedPackages = Array.Empty<CachedPackageInfoViewModel> ();
 	private bool isDiscoveringProcessors;
 	private bool isApplyingSelectedProcessor;
+	private bool isRefreshingCachedPackages;
 
 	public MainViewModel (INuGetPackageService nugetPackageService, IPackageInspectionService packageInspectionService, IAppSettingsStore appSettingsStore, ICredentialStore credentialStore, IProcessorDiscoveryService processorDiscoveryService, ISftpDriverDeploymentService sftpDriverDeploymentService)
 		{
@@ -75,6 +79,12 @@ public sealed class MainViewModel : ObservableObject
 		DeleteProcessorCommand = new AsyncRelayCommand (DeleteSelectedProcessorsAsync, () => SavedProcessors.Any (processor => processor.IsSelected));
 		InstallCommand = new AsyncRelayCommand (InstallAsync, () => selectedDriverPackage is not null && SavedProcessors.Any (processor => processor.IsSelected || ReferenceEquals (processor, SelectedSavedProcessor)) && !string.IsNullOrWhiteSpace (Username));
 		_ = InitializeAsync ();
+		}
+
+	public void Dispose ()
+		{
+		cacheRefreshCancellationTokenSource.Cancel ();
+		cacheRefreshCancellationTokenSource.Dispose ();
 		}
 
 	public ObservableCollection<PackageSearchResultViewModel> SearchResults
@@ -413,6 +423,8 @@ public sealed class MainViewModel : ObservableObject
 			{
 			SearchResults.Add (new PackageSearchResultViewModel (result));
 			}
+
+		await RefreshCachedPackagesAsync ();
 
 		StatusMessage = onlyV1CompliantPackages
 			 ? $"Found {SearchResults.Count} v1-compliant package(s)."
@@ -796,14 +808,25 @@ public sealed class MainViewModel : ObservableObject
 		DeleteProcessorCommand.RaiseCanExecuteChanged ();
 		}
 
-	private async Task RefreshCachedPackagesAsync ()
+	private async Task RefreshCachedPackagesAsync (bool showValidationStatus = true)
 		{
+		if (isRefreshingCachedPackages)
+			{
+			return;
+			}
+
+		isRefreshingCachedPackages = true;
+		try
+			{
 		var cachedPackages = await nugetPackageService.ListCachedPackagesAsync (cacheDirectory);
 		var wasValidatingCachedPackages = false;
 		if (cachedPackages.Count > 0)
 			{
 			wasValidatingCachedPackages = true;
-			SetStatus ($"Validating {cachedPackages.Count} cached package(s) for newer versions...", isError: false);
+			if (showValidationStatus)
+				{
+				SetStatus ($"Validating {cachedPackages.Count} cached package(s) for newer versions...", isError: false);
+				}
 			await FlagCachedPackagesWithNewerVersionsAsync (cachedPackages);
 			}
 
@@ -819,11 +842,17 @@ public sealed class MainViewModel : ObservableObject
 		UseCachedPackageCommand.RaiseCanExecuteChanged ();
 		DeleteCachedPackageCommand.RaiseCanExecuteChanged ();
 
-		if (wasValidatingCachedPackages
+		if (showValidationStatus
+			&& wasValidatingCachedPackages
 			&& !IsStatusError
 			&& statusMessage.StartsWith ("Validating ", StringComparison.Ordinal))
 			{
 			StatusMessage = "Ready.";
+			}
+			}
+		finally
+			{
+			isRefreshingCachedPackages = false;
 			}
 		}
 
@@ -927,6 +956,32 @@ public sealed class MainViewModel : ObservableObject
 		await RefreshSavedProcessorsAsync ();
 		await RefreshCachedPackagesAsync ();
 		RestoreLastUsedProcessorSelection ();
+		_ = RefreshCachedPackagesPeriodicallyAsync (cacheRefreshCancellationTokenSource.Token);
+		}
+
+	private async Task RefreshCachedPackagesPeriodicallyAsync (CancellationToken cancellationToken)
+		{
+		try
+			{
+			using var timer = new PeriodicTimer (_cachedPackageRefreshInterval);
+			while (await timer.WaitForNextTickAsync (cancellationToken))
+				{
+				try
+					{
+					await RefreshCachedPackagesAsync (showValidationStatus: false);
+					}
+				catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+					{
+					break;
+					}
+				catch (Exception)
+					{
+					}
+				}
+			}
+		catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+			{
+			}
 		}
 
 	private async Task<DriverPackageInfo> InspectCachedPackageAsync (CachedPackageInfoViewModel cachedPackage)
