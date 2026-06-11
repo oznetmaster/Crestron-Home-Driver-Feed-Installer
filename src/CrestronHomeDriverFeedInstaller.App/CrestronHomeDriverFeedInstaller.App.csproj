@@ -25,11 +25,11 @@
     <Authors>Neil Colvin</Authors>
     <Company>Neil Colvin</Company>
     <Copyright>Copyright ©2026 Neil Colvin</Copyright>
-    <RepositoryUrl>https://github.com/oznetmaster/CrestronHomeDriverFeedInstaller</RepositoryUrl>
+  <RepositoryUrl>https://github.com/oznetmaster/Crestron-Home-Driver-Feed-Installer</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
-    <AssemblyMetadata Include="RepositoryUrl" Value="https://github.com/oznetmaster/CrestronHomeDriverFeedInstaller" />
+  <AssemblyMetadata Include="RepositoryUrl" Value="https://github.com/oznetmaster/Crestron-Home-Driver-Feed-Installer" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">

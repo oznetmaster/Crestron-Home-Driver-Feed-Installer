@@ -11,6 +11,9 @@
 	<OutputName>Crestron Home Driver Feed Installer</OutputName>
 	<SetupProject>$(MSBuildThisFileDirectory)CrestronHomeDriverFeedInstaller.Setup.wixproj</SetupProject>
 	<SetupMsiPath>$(MSBuildThisFileDirectory)bin\$(Configuration)\Crestron Home Driver Feed Installer.msi</SetupMsiPath>
+	<DotNetDesktopRuntimeFileName>windowsdesktop-runtime-10.0.9-win-x64.exe</DotNetDesktopRuntimeFileName>
+	<DotNetDesktopRuntimeUrl>https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.9/windowsdesktop-runtime-10.0.9-win-x64.exe</DotNetDesktopRuntimeUrl>
+	<DotNetDesktopRuntimePath>$(MSBuildThisFileDirectory)$(DotNetDesktopRuntimeFileName)</DotNetDesktopRuntimePath>
 	<DefineConstants>$(DefineConstants);SetupMsiPath=$(SetupMsiPath)</DefineConstants>
   </PropertyGroup>
 
@@ -21,6 +24,10 @@
   <ItemGroup>
 	<Compile Include="Bundle.wxs" />
   </ItemGroup>
+
+	<Target Name="DownloadDotNetDesktopRuntime" BeforeTargets="BeforeBuild" Condition="!Exists('$(DotNetDesktopRuntimePath)')">
+		<DownloadFile SourceUrl="$(DotNetDesktopRuntimeUrl)" DestinationFile="$(DotNetDesktopRuntimePath)" />
+	</Target>
 
   <Target Name="BuildSetupMsi" BeforeTargets="BeforeBuild">
 	<Exec Command="dotnet build &quot;$(SetupProject)&quot; -c $(Configuration)" />

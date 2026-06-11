@@ -321,7 +321,7 @@ public partial class MainWindow : Window
 
 		return metadataAttribute?.Value
 			?? assembly?.GetCustomAttribute<AssemblyMetadataAttribute> ()?.Value
-			?? "https://github.com/oznetmaster/CrestronHomeDriverFeedInstaller";
+			?? "https://github.com/oznetmaster/Crestron-Home-Driver-Feed-Installer";
 		}
 
 	[DllImport ("user32.dll", CharSet = CharSet.Unicode)]

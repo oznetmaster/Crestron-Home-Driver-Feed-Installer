@@ -18,8 +18,8 @@
 
 	<Icon Id="AppIcon.ico" SourceFile="..\src\Resources\variant_1_blue_light_transparent.ico" />
 	<Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
-	<Property Id="ARPURLINFOABOUT" Value="https://github.com/oznetmaster/CrestronHomeDriverFeedInstaller" />
-	<Property Id="ARPHELPLINK" Value="https://github.com/oznetmaster/CrestronHomeDriverFeedInstaller" />
+	<Property Id="ARPURLINFOABOUT" Value="https://github.com/oznetmaster/Crestron-Home-Driver-Feed-Installer" />
+	<Property Id="ARPHELPLINK" Value="https://github.com/oznetmaster/Crestron-Home-Driver-Feed-Installer" />
 	<Property Id="MSIFASTINSTALL" Value="7" />
 	<Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
 	<WixVariable Id="WixUIBannerBmp" Value="Assets\WixUIBanner.bmp" />

@@ -62,6 +62,7 @@ BenchmarkDotNet.Artifacts/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+installer/windowsdesktop-runtime-10.0.9-win-x64.exe
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
