@@ -25,6 +25,9 @@ public partial class MainWindow : Window
 	private const int WM_SYSCOMMAND = 0x112;
 
 	private readonly IAppSettingsStore appSettingsStore;
+	private DataGrid? preservedSelectionDataGrid;
+	private object? preservedSelectedItem;
+	private IReadOnlyList<object> preservedSelectedItems = Array.Empty<object> ();
 
 	public MainWindow (IAppSettingsStore appSettingsStore)
 		{
@@ -114,6 +117,7 @@ public partial class MainWindow : Window
 		{
 		if (DataContext is not MainViewModel viewModel)
 			{
+			RestorePreservedSelection ();
 			return;
 			}
 
@@ -121,12 +125,15 @@ public partial class MainWindow : Window
 			{
 			viewModel.ShowPackageInfo (package);
 			}
+
+		RestorePreservedSelection ();
 		}
 
 	private void CachedPackageInfoButton_OnClick (object sender, RoutedEventArgs e)
 		{
 		if (DataContext is not MainViewModel viewModel)
 			{
+			RestorePreservedSelection ();
 			return;
 			}
 
@@ -134,6 +141,26 @@ public partial class MainWindow : Window
 			{
 			_ = viewModel.ShowCachedPackageInfoAsync (cachedPackage);
 			}
+
+		RestorePreservedSelection ();
+		}
+
+	private void InfoButton_OnPreviewMouseLeftButtonDown (object sender, MouseButtonEventArgs e)
+		{
+		if (sender is not DependencyObject dependencyObject)
+			{
+			return;
+			}
+
+		var dataGrid = FindAncestor<DataGrid> (dependencyObject);
+		if (dataGrid is null)
+			{
+			return;
+			}
+
+		preservedSelectionDataGrid = dataGrid;
+		preservedSelectedItem = dataGrid.SelectedItem;
+		preservedSelectedItems = dataGrid.SelectedItems.Cast<object> ().ToArray ();
 		}
 
 	private void CachedPackagesDataGrid_OnSelectionChanged (object sender, SelectionChangedEventArgs e)
@@ -248,6 +275,33 @@ public partial class MainWindow : Window
 		return FindAncestor<ButtonBase> (dependencyObject) is not null
 			|| FindAncestor<TextBoxBase> (dependencyObject) is not null
 			|| FindAncestor<ScrollBar> (dependencyObject) is not null;
+		}
+
+	private void RestorePreservedSelection ()
+		{
+		if (preservedSelectionDataGrid is null)
+			{
+			return;
+			}
+
+		var dataGrid = preservedSelectionDataGrid;
+		var selectedItem = preservedSelectedItem;
+		var selectedItems = preservedSelectedItems;
+
+		preservedSelectionDataGrid = null;
+		preservedSelectedItem = null;
+		preservedSelectedItems = Array.Empty<object> ();
+
+		dataGrid.UnselectAll ();
+		if (selectedItem is not null)
+			{
+			dataGrid.SelectedItem = selectedItem;
+			}
+
+		foreach (var item in selectedItems.Where (item => !ReferenceEquals (item, selectedItem)))
+			{
+			dataGrid.SelectedItems.Add (item);
+			}
 		}
 
 	private static T? FindAncestor<T> (DependencyObject? dependencyObject)

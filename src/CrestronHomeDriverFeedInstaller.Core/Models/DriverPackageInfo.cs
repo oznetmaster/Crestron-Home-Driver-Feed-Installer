@@ -15,5 +15,7 @@ public sealed class DriverPackageInfo
 
 	public string CrestronDriverPackageJsonContent { get; init; } = string.Empty;
 
+	public string ReadmeContent { get; init; } = string.Empty;
+
 	public IReadOnlyList<string> Entries { get; init; } = Array.Empty<string> ();
 	}

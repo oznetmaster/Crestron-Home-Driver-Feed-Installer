@@ -6,7 +6,7 @@
 	 xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
 	<Package Name="Crestron Home Driver Feed Installer"
 		   Manufacturer="Neil Colvin"
-		   Version="1.0.0"
+		   Version="1.0.6"
 		   UpgradeCode="C1F9F8C0-56F2-4E51-9A70-6F1F340F7F3A"
 		   Language="1033"
 		   Scope="perMachine"

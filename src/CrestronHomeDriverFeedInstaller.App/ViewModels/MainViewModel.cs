@@ -14,6 +14,9 @@ public sealed class MainViewModel : ObservableObject
 	{
 	private static readonly string _selectedPackageInfoMessage = "Select Info on a package entry to view more details.";
 	private static readonly string _selectedCachedPackageInfoMessage = "Select Info on a cached package entry to view more details.";
+	private static readonly string _packageEntriesMessage = "Inspect or stage a package to view its entries.";
+	private static readonly string _manifestMessage = "Inspect or stage a package to view crestron-driver-package.json.";
+	private static readonly string _readmeMessage = "Inspect or stage a package to view README.md.";
 
 	private readonly INuGetPackageService nugetPackageService;
 	private readonly IPackageInspectionService packageInspectionService;
@@ -37,8 +40,9 @@ public sealed class MainViewModel : ObservableObject
 	private string selectedPackageDetails = _selectedPackageInfoMessage;
 	private string selectedCachedPackageDetails = _selectedCachedPackageInfoMessage;
 	private string discoveryDiagnostics = string.Empty;
-	private string crestronDriverPackageJsonContent = string.Empty;
-	private string packageEntries = string.Empty;
+	private string crestronDriverPackageJsonContent = _manifestMessage;
+	private string readmeContent = _readmeMessage;
+	private string packageEntries = _packageEntriesMessage;
 	private string stagedDriverPackagePath = "No package has been staged yet.";
 	private PackageSearchResultViewModel? selectedPackage;
 	private IReadOnlyList<PackageSearchResultViewModel> selectedPackages = Array.Empty<PackageSearchResultViewModel> ();
@@ -338,6 +342,12 @@ public sealed class MainViewModel : ObservableObject
 		set => SetProperty (ref selectedPackageDetails, value);
 		}
 
+	public string ReadmeContent
+		{
+		get => readmeContent;
+		set => SetProperty (ref readmeContent, value);
+		}
+
 	public string SelectedCachedPackageDetails
 		{
 		get => selectedCachedPackageDetails;
@@ -391,8 +401,9 @@ public sealed class MainViewModel : ObservableObject
 		SelectedPackages = Array.Empty<PackageSearchResultViewModel> ();
 		SelectedPackageDetails = _selectedPackageInfoMessage;
 		SelectedCachedPackageDetails = _selectedCachedPackageInfoMessage;
-		CrestronDriverPackageJsonContent = string.Empty;
-		PackageEntries = string.Empty;
+		CrestronDriverPackageJsonContent = _manifestMessage;
+		ReadmeContent = _readmeMessage;
+		PackageEntries = _packageEntriesMessage;
 		selectedDriverPackage = null;
 		StagedDriverPackagePath = "No package has been staged yet.";
 		InstallCommand.RaiseCanExecuteChanged ();
@@ -455,6 +466,7 @@ public sealed class MainViewModel : ObservableObject
 
 		var driverPackage = await InspectCachedPackageAsync (cachedPackage);
 		CrestronDriverPackageJsonContent = driverPackage.CrestronDriverPackageJsonContent;
+		ReadmeContent = driverPackage.ReadmeContent;
 		PackageEntries = string.Join (Environment.NewLine, driverPackage.Entries);
 		StagedDriverPackagePath = driverPackage.DriverPackagePath;
 
@@ -503,6 +515,7 @@ public sealed class MainViewModel : ObservableObject
 
 		selectedDriverPackage = lastInspectedPackage;
 		CrestronDriverPackageJsonContent = selectedDriverPackage.CrestronDriverPackageJsonContent;
+		ReadmeContent = selectedDriverPackage.ReadmeContent;
 		PackageEntries = string.Join (Environment.NewLine, selectedDriverPackage.Entries);
 		StagedDriverPackagePath = selectedDriverPackage.DriverPackagePath;
 		InstallCommand.RaiseCanExecuteChanged ();
@@ -523,6 +536,7 @@ public sealed class MainViewModel : ObservableObject
 		var selectedCachedPackageInfo = selectedPackages[0];
 		selectedDriverPackage = await InspectCachedPackageAsync (selectedCachedPackageInfo);
 		CrestronDriverPackageJsonContent = selectedDriverPackage.CrestronDriverPackageJsonContent;
+		ReadmeContent = selectedDriverPackage.ReadmeContent;
 		PackageEntries = string.Join (Environment.NewLine, selectedDriverPackage.Entries);
 		StagedDriverPackagePath = selectedDriverPackage.DriverPackagePath;
 		InstallCommand.RaiseCanExecuteChanged ();

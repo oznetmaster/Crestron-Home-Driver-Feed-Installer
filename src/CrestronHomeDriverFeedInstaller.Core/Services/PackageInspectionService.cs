@@ -41,6 +41,18 @@ public sealed class PackageInspectionService : IPackageInspectionService
 			crestronDriverPackageJsonContent = await reader.ReadToEndAsync (cancellationToken);
 			}
 
+		string readmeContent;
+		var readmeEntry = packageArchive.Entries.FirstOrDefault (entry => entry.FullName.EndsWith ("README.md", StringComparison.OrdinalIgnoreCase));
+		if (readmeEntry is null)
+			{
+			readmeContent = "README.md was not found in the NuGet package.";
+			}
+		else
+			{
+			using var reader = new StreamReader (readmeEntry.Open (), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+			readmeContent = await reader.ReadToEndAsync (cancellationToken);
+			}
+
 		return new DriverPackageInfo
 			{
 			PackageId = packageId,
@@ -48,6 +60,7 @@ public sealed class PackageInspectionService : IPackageInspectionService
 			PackageArchivePath = packageArchivePath,
 			DriverPackagePath = driverPackagePath,
 			CrestronDriverPackageJsonContent = crestronDriverPackageJsonContent,
+			ReadmeContent = readmeContent,
 			Entries = packageArchive.Entries.Select (entry => entry.FullName).OrderBy (name => name).ToArray ()
 			};
 		}

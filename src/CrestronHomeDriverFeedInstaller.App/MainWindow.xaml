@@ -11,6 +11,8 @@
         Title="Crestron Home Driver Feed Installer" Height="760" Width="1200" MinHeight="700" MinWidth="1100">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="RoyalBlue" />
+        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="White" />
         <Style x:Key="StatusTextStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="Black" />
             <Style.Triggers>
@@ -125,7 +127,7 @@
                         <DataGridTemplateColumn Header="Info" Width="Auto">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                        <Button Width="28" Height="24" Padding="0" FontSize="14" FontWeight="SemiBold" Click="PackageInfoButton_OnClick" ToolTip="Package information">
+                                        <Button Width="28" Height="24" Padding="0" FontSize="14" FontWeight="SemiBold" PreviewMouseLeftButtonDown="InfoButton_OnPreviewMouseLeftButtonDown" Click="PackageInfoButton_OnClick" ToolTip="Package information">
                                             <TextBlock Text="ⓘ" TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                         </Button>
                                 </DataTemplate>
@@ -165,7 +167,7 @@
                             <DataGridTemplateColumn Header="Info" Width="Auto">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Button Width="28" Height="24" Padding="0" FontSize="14" FontWeight="SemiBold" Click="CachedPackageInfoButton_OnClick" ToolTip="Cached package information">
+                                        <Button Width="28" Height="24" Padding="0" FontSize="14" FontWeight="SemiBold" PreviewMouseLeftButtonDown="InfoButton_OnPreviewMouseLeftButtonDown" Click="CachedPackageInfoButton_OnClick" ToolTip="Cached package information">
                                             <TextBlock Text="ⓘ" TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                         </Button>
                                     </DataTemplate>
@@ -188,9 +190,11 @@
             </Grid>
         </GroupBox>
 
-        <GroupBox Header="Package details" Grid.Row="1" Grid.Column="1" Margin="0,0,8,8">
+        <GroupBox Header="Package details" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,8">
             <Grid Margin="8">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -199,18 +203,35 @@
                 <TextBlock Text="Selected package" Margin="0,0,0,8" FontWeight="SemiBold" />
                 <TextBox Grid.Row="1" Margin="0,0,0,8" Text="{Binding SelectedPackageDetails}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" IsReadOnly="True" MinHeight="120" ToolTip="Details for the selected package from the feed." />
                 <TextBlock Grid.Row="2" Text="Cached package" Margin="0,0,0,8" FontWeight="SemiBold" />
-                <TextBox Grid.Row="3" Text="{Binding SelectedCachedPackageDetails}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" IsReadOnly="True" ToolTip="Details for the selected cached package." />
-            </Grid>
-        </GroupBox>
-
-        <GroupBox Header="crestron-driver-package.json" Grid.Row="1" Grid.Column="2" Margin="0,0,0,8">
-            <Grid Margin="8">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-                <TextBox Text="{Binding StagedDriverPackagePath}" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True" Margin="0,0,0,8" ToolTip="Path to the currently staged crestron-driver-package.json file." />
-                <TextBox Grid.Row="1" Text="{Binding CrestronDriverPackageJsonContent}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" IsReadOnly="True" ToolTip="Contents of the staged crestron-driver-package.json file." />
+                <TextBox Grid.Row="3" Margin="0,0,0,8" Text="{Binding SelectedCachedPackageDetails}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" IsReadOnly="True" MinHeight="90" ToolTip="Details for the selected cached package." />
+                <TextBlock Grid.Row="4" Text="Staged driver package" Margin="0,0,0,8" FontWeight="SemiBold" />
+                <Grid Grid.Row="5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBox Text="{Binding StagedDriverPackagePath}" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True" Margin="0,0,0,8" ToolTip="Path to the currently staged driver package." />
+                    <TabControl Grid.Row="1">
+                        <TabItem>
+                            <TabItem.Header>
+                                <TextBlock Text="Entries" ToolTip="Entries in the staged driver package." />
+                            </TabItem.Header>
+                            <TextBox Text="{Binding PackageEntries}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" IsReadOnly="True" />
+                        </TabItem>
+                        <TabItem>
+                            <TabItem.Header>
+                                <TextBlock Text="Manifest" ToolTip="Contents of the staged crestron-driver-package.json file." />
+                            </TabItem.Header>
+                            <TextBox Text="{Binding CrestronDriverPackageJsonContent}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" IsReadOnly="True" />
+                        </TabItem>
+                        <TabItem>
+                            <TabItem.Header>
+                                <TextBlock Text="README" ToolTip="Contents of the staged README.md file." />
+                            </TabItem.Header>
+                            <TextBox Text="{Binding ReadmeContent}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="Wrap" IsReadOnly="True" />
+                        </TabItem>
+                    </TabControl>
+                </Grid>
             </Grid>
         </GroupBox>
 

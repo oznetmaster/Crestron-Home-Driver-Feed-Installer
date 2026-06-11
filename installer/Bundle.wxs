@@ -6,7 +6,7 @@
 	 xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
 	<Bundle Name="Crestron Home Driver Feed Installer"
 		  Manufacturer="Neil Colvin"
-		  Version="1.0.0"
+		  Version="1.0.6"
 		  UpgradeCode="B5E9C15D-5D34-40A5-A7A3-86E22FA1B3E8"
 	  IconSourceFile="..\src\Resources\variant_1_blue_light.ico">
 

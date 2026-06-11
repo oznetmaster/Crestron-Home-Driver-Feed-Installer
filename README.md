@@ -89,7 +89,11 @@ The Windows MSI packaging project is located at:
 
 - `installer/CrestronHomeDriverFeedInstaller.Setup.wixproj`
 
-The Windows bootstrapper project is located at:
+The Visual Studio solution includes this installer wrapper project:
+
+- `installer/CrestronHomeDriverFeedInstaller.Setup.Build.csproj`
+
+The Windows bootstrapper project invoked by the wrapper for release builds is located at:
 
 - `installer/CrestronHomeDriverFeedInstaller.Bootstrapper.wixproj`
 
@@ -110,7 +114,7 @@ The bootstrapper project:
 - checks for the required .NET Desktop Runtime
 - installs the runtime when needed before installing the app MSI
 
-For source-based release builds, build the bootstrapper project in the solution and publish `installer\bin\Release\Crestron Home Driver Feed Installer.exe` as the release asset.
+For source-based release builds, build the solution in `Release` so the installer wrapper runs the bootstrapper build, then publish `installer\bin\Release\Crestron Home Driver Feed Installer.exe` as the release asset.
 
 The Windows installer project is located at:
 
