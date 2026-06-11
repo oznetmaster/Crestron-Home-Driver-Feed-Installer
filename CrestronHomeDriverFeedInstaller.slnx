@@ -3,14 +3,27 @@
     <Project Path="src/CrestronHomeDriverFeedInstaller.App/CrestronHomeDriverFeedInstaller.App.csproj" />
     <Project Path="src/CrestronHomeDriverFeedInstaller.Core/CrestronHomeDriverFeedInstaller.Core.csproj" />
   </Folder>
+  <Folder Name="/installer/">
+    <Project Path="installer/CrestronHomeDriverFeedInstaller.Setup.Build.csproj" />
+  </Folder>
+  <Folder Name="/src/Resources/">
+    <File Path="src/Resources/variant_1_blue_light.ico" />
+    <File Path="src/Resources/variant_1_blue_light.png" />
+    <File Path="src/Resources/variant_2_blue_dark.ico" />
+    <File Path="src/Resources/variant_2_blue_dark.png" />
+    <File Path="src/Resources/variant_3_white_light.ico" />
+    <File Path="src/Resources/variant_3_white_light.png" />
+    <File Path="src/Resources/variant_4_dark_mono.ico" />
+    <File Path="src/Resources/variant_4_dark_mono.png" />
+  </Folder>
   <Project Path="../OverkizCrestronDriver/OverKizCrestronDriver/OverKizCrestronDriver.csproj">
-    <Build Solution="Debug|*" Project="false" />
+    <Build Project="false" />
   </Project>
   <Project Path="../WeatherLinkLiveCrestronDriver/WeatherLinkLiveCrestronDriver/WeatherLinkLiveCrestronDriver.csproj">
-    <Build Solution="Debug|*" Project="false" />
+    <Build Project="false" />
   </Project>
   <Project Path="../WiserHeatCrestronDriver/WiserHeatCrestronDriver/WiserHeatCrestronDriver.csproj">
-    <Build Solution="Debug|*" Project="false" />
+    <Build Project="false" />
   </Project>
 </Solution>
 

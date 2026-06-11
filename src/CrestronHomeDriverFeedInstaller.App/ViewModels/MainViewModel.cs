@@ -1,3 +1,6 @@
+// Copyright ©2026 Neil Colvin
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
+
 using System.Collections.ObjectModel;
 using System.IO;
 
@@ -9,12 +12,17 @@ namespace CrestronHomeDriverFeedInstaller.App.ViewModels;
 
 public sealed class MainViewModel : ObservableObject
 	{
+	private static readonly string _selectedPackageInfoMessage = "Select Info on a package entry to view more details.";
+	private static readonly string _selectedCachedPackageInfoMessage = "Select Info on a cached package entry to view more details.";
+
 	private readonly INuGetPackageService nugetPackageService;
 	private readonly IPackageInspectionService packageInspectionService;
+	private readonly IAppSettingsStore appSettingsStore;
 	private readonly ICredentialStore credentialStore;
 	private readonly IProcessorDiscoveryService processorDiscoveryService;
 	private readonly ISftpDriverDeploymentService sftpDriverDeploymentService;
-	private readonly string cacheDirectory;
+	private AppSettings appSettings = new ();
+	private string cacheDirectory = new AppSettings ().CacheDirectory;
 	private string feedUrl = "https://api.nuget.org/v3/index.json";
 	private string searchTerm = "Crestron";
 	private string processorDisplayName = string.Empty;
@@ -26,40 +34,43 @@ public sealed class MainViewModel : ObservableObject
 	private bool isStatusError;
 	private bool showDiscoveryDiagnostics;
 	private string statusMessage = "Ready.";
-	private string selectedPackageDetails = "Select Info on a package entry to view more details.";
-	private string selectedCachedPackageDetails = "Select Info on a cached package entry to view more details.";
+	private string selectedPackageDetails = _selectedPackageInfoMessage;
+	private string selectedCachedPackageDetails = _selectedCachedPackageInfoMessage;
 	private string discoveryDiagnostics = string.Empty;
 	private string crestronDriverPackageJsonContent = string.Empty;
 	private string packageEntries = string.Empty;
 	private string stagedDriverPackagePath = "No package has been staged yet.";
 	private PackageSearchResultViewModel? selectedPackage;
+	private IReadOnlyList<PackageSearchResultViewModel> selectedPackages = Array.Empty<PackageSearchResultViewModel> ();
 	private DriverPackageInfo? selectedDriverPackage;
 	private SavedProcessorCredentialViewModel? selectedSavedProcessor;
 	private CachedPackageInfoViewModel? selectedCachedPackage;
+	private IReadOnlyList<CachedPackageInfoViewModel> selectedCachedPackages = Array.Empty<CachedPackageInfoViewModel> ();
 	private bool isDiscoveringProcessors;
+	private bool isApplyingSelectedProcessor;
 
-	public MainViewModel (INuGetPackageService nugetPackageService, IPackageInspectionService packageInspectionService, ICredentialStore credentialStore, IProcessorDiscoveryService processorDiscoveryService, ISftpDriverDeploymentService sftpDriverDeploymentService)
+	public MainViewModel (INuGetPackageService nugetPackageService, IPackageInspectionService packageInspectionService, IAppSettingsStore appSettingsStore, ICredentialStore credentialStore, IProcessorDiscoveryService processorDiscoveryService, ISftpDriverDeploymentService sftpDriverDeploymentService)
 		{
 		this.nugetPackageService = nugetPackageService;
 		this.packageInspectionService = packageInspectionService;
+		this.appSettingsStore = appSettingsStore;
 		this.credentialStore = credentialStore;
 		this.processorDiscoveryService = processorDiscoveryService;
 		this.sftpDriverDeploymentService = sftpDriverDeploymentService;
-		cacheDirectory = Path.Combine (Environment.GetFolderPath (Environment.SpecialFolder.LocalApplicationData), "CrestronHomeDriverFeedInstaller", "Cache");
 		SearchResults = new ObservableCollection<PackageSearchResultViewModel> ();
 		SavedProcessors = new ObservableCollection<SavedProcessorCredentialViewModel> ();
 		CachedPackages = new ObservableCollection<CachedPackageInfoViewModel> ();
 		SearchCommand = new AsyncRelayCommand (SearchAsync);
 		InspectCommand = new AsyncRelayCommand (InspectSelectedAsync, () => SelectedPackage is not null);
-		UseCachedPackageCommand = new AsyncRelayCommand (UseSelectedCachedPackagesAsync, () => CachedPackages.Any (package => package.IsSelected));
-		DeleteCachedPackageCommand = new AsyncRelayCommand (DeleteSelectedCachedPackagesAsync, () => CachedPackages.Any (package => package.IsSelected));
+		UseCachedPackageCommand = new AsyncRelayCommand (UploadSelectedCachedPackagesAsync, () => SelectedCachedPackages.Count > 0 && CanUploadToProcessor ());
+		UpdateCachedPackageCommand = new AsyncRelayCommand (UpdateSelectedCachedPackagesAsync, () => SelectedCachedPackages.Count > 0);
+		DeleteCachedPackageCommand = new AsyncRelayCommand (DeleteSelectedCachedPackagesAsync, () => SelectedCachedPackages.Count > 0);
 		ShowCachedPackageInfoCommand = new AsyncRelayCommand (ShowSelectedCachedPackageInfoAsync, () => SelectedCachedPackage is not null);
 		DiscoverProcessorsCommand = new AsyncRelayCommand (DiscoverProcessorsAsync, () => !isDiscoveringProcessors);
 		AddProcessorCommand = new AsyncRelayCommand (AddProcessorAsync);
 		DeleteProcessorCommand = new AsyncRelayCommand (DeleteSelectedProcessorsAsync, () => SavedProcessors.Any (processor => processor.IsSelected));
 		InstallCommand = new AsyncRelayCommand (InstallAsync, () => selectedDriverPackage is not null && SavedProcessors.Any (processor => processor.IsSelected || ReferenceEquals (processor, SelectedSavedProcessor)) && !string.IsNullOrWhiteSpace (Username));
-		_ = RefreshSavedProcessorsAsync ();
-		_ = RefreshCachedPackagesAsync ();
+		_ = InitializeAsync ();
 		}
 
 	public ObservableCollection<PackageSearchResultViewModel> SearchResults
@@ -97,6 +108,11 @@ public sealed class MainViewModel : ObservableObject
 		get;
 		}
 
+	public AsyncRelayCommand UpdateCachedPackageCommand
+		{
+		get;
+		}
+
 	public AsyncRelayCommand ShowCachedPackageInfoCommand
 		{
 		get;
@@ -122,10 +138,27 @@ public sealed class MainViewModel : ObservableObject
 		get;
 		}
 
+	public string InspectButtonText => SelectedPackages.Count == 1 ? "Download and inspect selected package" : "Download and inspect selected packages";
+
+	public string UseCachedPackageButtonText => "Upload selected";
+
+	public string UpdateCachedPackageButtonText => "Update selected";
+
+	public string DeleteCachedPackageButtonText => "Delete selected";
+
+	public bool CanDeleteCachedPackages => SelectedCachedPackages.Count > 0;
+
 	public string FeedUrl
 		{
 		get => feedUrl;
-		set => SetProperty (ref feedUrl, value);
+		set
+			{
+			if (SetProperty (ref feedUrl, value))
+				{
+				appSettings.FeedUrl = value;
+				PersistAppSettings ();
+				}
+			}
 		}
 
 	public string SearchTerm
@@ -148,7 +181,37 @@ public sealed class MainViewModel : ObservableObject
 			if (SetProperty (ref processorHost, value))
 				{
 				InstallCommand.RaiseCanExecuteChanged ();
+				UseCachedPackageCommand.RaiseCanExecuteChanged ();
 				}
+			}
+		}
+
+	public IReadOnlyList<CachedPackageInfoViewModel> SelectedCachedPackages
+		{
+		get => selectedCachedPackages;
+		set
+			{
+			selectedCachedPackages = value;
+			UseCachedPackageCommand.RaiseCanExecuteChanged ();
+			UpdateCachedPackageCommand.RaiseCanExecuteChanged ();
+			DeleteCachedPackageCommand.RaiseCanExecuteChanged ();
+			OnPropertyChanged (nameof (UseCachedPackageButtonText));
+			OnPropertyChanged (nameof (UpdateCachedPackageButtonText));
+			OnPropertyChanged (nameof (DeleteCachedPackageButtonText));
+			OnPropertyChanged (nameof (CanDeleteCachedPackages));
+			UpdateSelectionStatusMessage ();
+			}
+		}
+
+	public IReadOnlyList<PackageSearchResultViewModel> SelectedPackages
+		{
+		get => selectedPackages;
+		set
+			{
+			selectedPackages = value;
+			InspectCommand.RaiseCanExecuteChanged ();
+			OnPropertyChanged (nameof (InspectButtonText));
+			UpdateSelectionStatusMessage ();
 			}
 		}
 
@@ -157,9 +220,19 @@ public sealed class MainViewModel : ObservableObject
 		get => selectedSavedProcessor;
 		set
 			{
+			if (!ReferenceEquals (selectedSavedProcessor, value))
+				{
+				PersistSelectedProcessorDraft (selectedSavedProcessor);
+				}
+
 			if (SetProperty (ref selectedSavedProcessor, value))
 				{
-				ApplySelectedProcessor (value);
+				_ = ApplySelectedProcessorAsync (value);
+				if (value is not null)
+					{
+					appSettings.LastUsedProcessorHost = value.Host;
+					PersistAppSettings ();
+					}
 				DeleteProcessorCommand.RaiseCanExecuteChanged ();
 				}
 			}
@@ -187,6 +260,8 @@ public sealed class MainViewModel : ObservableObject
 			if (SetProperty (ref username, value))
 				{
 				InstallCommand.RaiseCanExecuteChanged ();
+				UseCachedPackageCommand.RaiseCanExecuteChanged ();
+				PersistSelectedProcessorDraft ();
 				}
 			}
 		}
@@ -194,13 +269,25 @@ public sealed class MainViewModel : ObservableObject
 	public string Password
 		{
 		get => password;
-		set => SetProperty (ref password, value);
+		set
+			{
+			if (SetProperty (ref password, value))
+				{
+				PersistSelectedProcessorDraft ();
+				}
+			}
 		}
 
 	public bool RememberCredentials
 		{
 		get => rememberCredentials;
-		set => SetProperty (ref rememberCredentials, value);
+		set
+			{
+			if (SetProperty (ref rememberCredentials, value))
+				{
+				UseCachedPackageCommand.RaiseCanExecuteChanged ();
+				}
+			}
 		}
 
 	public bool OnlyV1CompliantPackages
@@ -282,6 +369,14 @@ public sealed class MainViewModel : ObservableObject
 			{
 			if (SetProperty (ref selectedPackage, value))
 				{
+				if (value is null)
+					{
+					SelectedPackages = Array.Empty<PackageSearchResultViewModel> ();
+					}
+				else if (!SelectedPackages.Contains (value))
+					{
+					SelectedPackages = [value];
+					}
 				InspectCommand.RaiseCanExecuteChanged ();
 				}
 			}
@@ -293,8 +388,9 @@ public sealed class MainViewModel : ObservableObject
 			 ? "Searching feed for v1-compliant driver packages..."
 			 : "Searching feed...";
 		SearchResults.Clear ();
-		SelectedPackageDetails = "Select Info on a package entry to view more details.";
-		SelectedCachedPackageDetails = "Select Info on a cached package entry to view more details.";
+		SelectedPackages = Array.Empty<PackageSearchResultViewModel> ();
+		SelectedPackageDetails = _selectedPackageInfoMessage;
+		SelectedCachedPackageDetails = _selectedCachedPackageInfoMessage;
 		CrestronDriverPackageJsonContent = string.Empty;
 		PackageEntries = string.Empty;
 		selectedDriverPackage = null;
@@ -329,11 +425,12 @@ public sealed class MainViewModel : ObservableObject
 			string.Empty,
 			package.Description
 		]);
+		StagedDriverPackagePath = $"Package info selected: {package.Id} {package.Version}";
 
 		StatusMessage = $"Showing package information for {package.Id}.";
 		}
 
-	public void ShowCachedPackageInfo (CachedPackageInfoViewModel? cachedPackage)
+	public async Task ShowCachedPackageInfoAsync (CachedPackageInfoViewModel? cachedPackage)
 		{
 		if (cachedPackage is null)
 			{
@@ -341,6 +438,14 @@ public sealed class MainViewModel : ObservableObject
 			}
 
 		SelectedCachedPackage = cachedPackage;
+		SelectedPackageDetails = string.Join (Environment.NewLine, [
+			$"Package ID: {cachedPackage.PackageId}",
+			$"Version: {cachedPackage.Version}",
+			$"Authors: {cachedPackage.Authors}",
+			$"Latest available: {cachedPackage.LatestAvailableVersion ?? "Current"}",
+			string.Empty,
+			cachedPackage.Description
+		]);
 		SelectedCachedPackageDetails = string.Join (Environment.NewLine, [
 			$"Package ID: {cachedPackage.PackageId}",
 			$"Version: {cachedPackage.Version}",
@@ -348,47 +453,75 @@ public sealed class MainViewModel : ObservableObject
 			$"Extracted driver package: {cachedPackage.DriverPackagePath}"
 		]);
 
+		var driverPackage = await InspectCachedPackageAsync (cachedPackage);
+		CrestronDriverPackageJsonContent = driverPackage.CrestronDriverPackageJsonContent;
+		PackageEntries = string.Join (Environment.NewLine, driverPackage.Entries);
+		StagedDriverPackagePath = driverPackage.DriverPackagePath;
+
 		StatusMessage = $"Showing cached package information for {cachedPackage.PackageId}.";
 		}
 
 	private Task ShowSelectedCachedPackageInfoAsync ()
 		{
-		ShowCachedPackageInfo (SelectedCachedPackage);
-		return Task.CompletedTask;
+		return ShowCachedPackageInfoAsync (SelectedCachedPackage);
 		}
 
 	private async Task InspectSelectedAsync ()
 		{
-		if (SelectedPackage is null)
+		var packagesToInspect = SelectedPackages.Count > 0
+			? SelectedPackages.ToArray ()
+			: SelectedPackage is null
+				? Array.Empty<PackageSearchResultViewModel> ()
+				: [SelectedPackage];
+
+		if (packagesToInspect.Length == 0)
 			{
 			return;
 			}
 
-		StatusMessage = $"Downloading {SelectedPackage.Id}...";
-		var packagePath = await nugetPackageService.DownloadPackageAsync (FeedUrl, SelectedPackage.Id, SelectedPackage.Version, cacheDirectory);
+		DriverPackageInfo? lastInspectedPackage = null;
 
-		StatusMessage = "Inspecting package contents...";
-		var extractDirectory = Path.Combine (cacheDirectory, "Extracted", SelectedPackage.Id, SelectedPackage.Version);
-		selectedDriverPackage = await packageInspectionService.InspectPackageAsync (SelectedPackage.Id, SelectedPackage.Version, packagePath, extractDirectory);
+		for (var index = 0; index < packagesToInspect.Length; index++)
+			{
+			var package = packagesToInspect[index];
+			StatusMessage = packagesToInspect.Length == 1
+				? $"Downloading {package.Id}..."
+				: $"Downloading package {index + 1} of {packagesToInspect.Length}: {package.Id}...";
+			var packagePath = await nugetPackageService.DownloadPackageAsync (FeedUrl, package.Id, package.Version, cacheDirectory);
+
+			StatusMessage = packagesToInspect.Length == 1
+				? "Inspecting package contents..."
+				: $"Inspecting package {index + 1} of {packagesToInspect.Length}: {package.Id}...";
+			var extractDirectory = Path.Combine (cacheDirectory, "Extracted", package.Id, package.Version);
+			lastInspectedPackage = await packageInspectionService.InspectPackageAsync (package.Id, package.Version, packagePath, extractDirectory);
+			}
+
+		if (lastInspectedPackage is null)
+			{
+			return;
+			}
+
+		selectedDriverPackage = lastInspectedPackage;
 		CrestronDriverPackageJsonContent = selectedDriverPackage.CrestronDriverPackageJsonContent;
 		PackageEntries = string.Join (Environment.NewLine, selectedDriverPackage.Entries);
 		StagedDriverPackagePath = selectedDriverPackage.DriverPackagePath;
 		InstallCommand.RaiseCanExecuteChanged ();
 		await RefreshCachedPackagesAsync ();
-		StatusMessage = $"Ready to upload {Path.GetFileName (selectedDriverPackage.DriverPackagePath)}.";
+		StatusMessage = packagesToInspect.Length == 1
+			? $"Ready to upload {Path.GetFileName (selectedDriverPackage.DriverPackagePath)}."
+			: $"Downloaded and inspected {packagesToInspect.Length} packages. Staged {Path.GetFileName (selectedDriverPackage.DriverPackagePath)}.";
 		}
 
 	private async Task UseSelectedCachedPackagesAsync ()
 		{
-		var selectedPackages = CachedPackages.Where (package => package.IsSelected).ToArray ();
+		var selectedPackages = SelectedCachedPackages.ToArray ();
 		if (selectedPackages.Length == 0)
 			{
 			return;
 			}
 
 		var selectedCachedPackageInfo = selectedPackages[0];
-		var extractDirectory = Path.Combine (cacheDirectory, "Extracted", selectedCachedPackageInfo.PackageId, selectedCachedPackageInfo.Version);
-		selectedDriverPackage = await packageInspectionService.InspectPackageAsync (selectedCachedPackageInfo.PackageId, selectedCachedPackageInfo.Version, selectedCachedPackageInfo.Model.PackageArchivePath, extractDirectory);
+		selectedDriverPackage = await InspectCachedPackageAsync (selectedCachedPackageInfo);
 		CrestronDriverPackageJsonContent = selectedDriverPackage.CrestronDriverPackageJsonContent;
 		PackageEntries = string.Join (Environment.NewLine, selectedDriverPackage.Entries);
 		StagedDriverPackagePath = selectedDriverPackage.DriverPackagePath;
@@ -398,9 +531,20 @@ public sealed class MainViewModel : ObservableObject
 			: $"Selected {selectedPackages.Length} cached package(s); staged {selectedCachedPackageInfo.DisplayLabel}.";
 		}
 
+	private async Task UploadSelectedCachedPackagesAsync ()
+		{
+		await UseSelectedCachedPackagesAsync ();
+		if (selectedDriverPackage is null)
+			{
+			return;
+			}
+
+		await InstallAsync ();
+		}
+
 	private async Task DeleteSelectedCachedPackagesAsync ()
 		{
-		var selectedPackages = CachedPackages.Where (package => package.IsSelected).ToArray ();
+		var selectedPackages = SelectedCachedPackages.ToArray ();
 		if (selectedPackages.Length == 0)
 			{
 			return;
@@ -412,33 +556,72 @@ public sealed class MainViewModel : ObservableObject
 			}
 
 		await RefreshCachedPackagesAsync ();
-		SelectedCachedPackageDetails = "Select Info on a cached package entry to view more details.";
+		SelectedCachedPackages = Array.Empty<CachedPackageInfoViewModel> ();
+		SelectedCachedPackageDetails = _selectedCachedPackageInfoMessage;
 		StatusMessage = selectedPackages.Length == 1
 			? $"Deleted cached package {selectedPackages[0].DisplayLabel}."
 			: $"Deleted {selectedPackages.Length} cached package(s).";
 		}
 
-	private void ApplySelectedProcessor (SavedProcessorCredentialViewModel? processor)
+	private async Task UpdateSelectedCachedPackagesAsync ()
 		{
+		var selectedPackages = SelectedCachedPackages
+			.Where (package => package.HasNewerVersionAvailable && !string.IsNullOrWhiteSpace (package.LatestAvailableVersion))
+			.ToArray ();
+		if (selectedPackages.Length == 0)
+			{
+			SetStatus ("No selected cached packages have updates available.", isError: false);
+			return;
+			}
+
+		for (var index = 0; index < selectedPackages.Length; index++)
+			{
+			var cachedPackage = selectedPackages[index];
+			StatusMessage = selectedPackages.Length == 1
+				? $"Updating cached package {cachedPackage.DisplayLabel}..."
+				: $"Updating cached package {index + 1} of {selectedPackages.Length}: {cachedPackage.DisplayLabel}...";
+
+			await nugetPackageService.DeleteCachedPackageAsync (cachedPackage.Model);
+			await nugetPackageService.DownloadPackageAsync (FeedUrl, cachedPackage.PackageId, cachedPackage.LatestAvailableVersion!, cacheDirectory);
+			}
+
+		await RefreshCachedPackagesAsync ();
+		SelectedCachedPackages = Array.Empty<CachedPackageInfoViewModel> ();
+		SelectedCachedPackageDetails = _selectedCachedPackageInfoMessage;
+		StatusMessage = selectedPackages.Length == 1
+			? "Updated 1 cached package to the latest version."
+			: $"Updated {selectedPackages.Length} cached packages to the latest versions.";
+		}
+
+	private async Task ApplySelectedProcessorAsync (SavedProcessorCredentialViewModel? processor)
+		{
+		isApplyingSelectedProcessor = true;
+		try
+			{
 		if (processor is null)
 			{
+			ProcessorDisplayName = string.Empty;
+			ProcessorHost = string.Empty;
+			Username = string.Empty;
+			Password = string.Empty;
 			return;
 			}
 
 		ProcessorDisplayName = processor.DisplayName;
 		ProcessorHost = processor.Host;
-		if (!string.IsNullOrWhiteSpace (processor.Username))
+		var savedCredential = await credentialStore.GetAsync (processor.Host, processor.Port);
+		Username = savedCredential?.Username ?? processor.Username;
+		Password = savedCredential?.Password ?? processor.Password;
+		}
+		finally
 			{
-			Username = processor.Username;
-			}
-		if (!string.IsNullOrWhiteSpace (processor.Password))
-			{
-			Password = processor.Password;
+			isApplyingSelectedProcessor = false;
 			}
 		}
 
 	private Task AddProcessorAsync ()
 		{
+		PersistSelectedProcessorDraft (SelectedSavedProcessor);
 		SelectedSavedProcessor = null;
 		ProcessorDisplayName = string.Empty;
 		ProcessorHost = string.Empty;
@@ -501,6 +684,8 @@ public sealed class MainViewModel : ObservableObject
 					}
 				}
 
+		RestoreLastUsedProcessorSelection ();
+
 			SetStatus (
 				supportedProcessors.Length == 0
 					? "No Crestron processors discovered on the local network."
@@ -530,6 +715,22 @@ public sealed class MainViewModel : ObservableObject
 		IsStatusError = isError;
 		}
 
+	private void UpdateSelectionStatusMessage ()
+		{
+		if (!IsStatusError
+			&& (statusMessage.StartsWith ("Selected cached packages:", StringComparison.Ordinal)
+				|| statusMessage.StartsWith ("Selected packages:", StringComparison.Ordinal)))
+			{
+			StatusMessage = "Ready.";
+			}
+		}
+
+	private bool CanUploadToProcessor ()
+		{
+		return (!string.IsNullOrWhiteSpace (ProcessorHost) || SavedProcessors.Any (processor => processor.IsSelected || ReferenceEquals (processor, SelectedSavedProcessor)))
+			&& !string.IsNullOrWhiteSpace (Username);
+		}
+
 	private async Task DeleteSelectedProcessorsAsync ()
 		{
 		var selectedProcessors = SavedProcessors.Where (processor => processor.IsSelected).ToArray ();
@@ -546,6 +747,11 @@ public sealed class MainViewModel : ObservableObject
 			{
 			await credentialStore.DeleteAsync (processor.Host, 22);
 			}
+		if (selectedProcessors.Any (processor => string.Equals (processor.Host, appSettings.LastUsedProcessorHost, StringComparison.OrdinalIgnoreCase)))
+			{
+			appSettings.LastUsedProcessorHost = null;
+			await PersistAppSettingsAsync ();
+			}
 		await RefreshSavedProcessorsAsync ();
 		await AddProcessorAsync ();
 		StatusMessage = selectedProcessors.Length == 1
@@ -555,11 +761,21 @@ public sealed class MainViewModel : ObservableObject
 
 	private async Task RefreshSavedProcessorsAsync ()
 		{
+		var hostToRestore = SelectedSavedProcessor?.Host ?? appSettings.LastUsedProcessorHost;
 		var savedProcessors = await credentialStore.ListAsync ();
 		SavedProcessors.Clear ();
 		foreach (var savedProcessor in savedProcessors)
 			{
 			SavedProcessors.Add (new SavedProcessorCredentialViewModel (savedProcessor));
+			}
+
+		if (!string.IsNullOrWhiteSpace (hostToRestore))
+			{
+			var matchingProcessor = SavedProcessors.FirstOrDefault (processor => string.Equals (processor.Host, hostToRestore, StringComparison.OrdinalIgnoreCase));
+			if (matchingProcessor is not null)
+				{
+				SelectedSavedProcessor = matchingProcessor;
+				}
 			}
 
 		InstallCommand.RaiseCanExecuteChanged ();
@@ -569,15 +785,62 @@ public sealed class MainViewModel : ObservableObject
 	private async Task RefreshCachedPackagesAsync ()
 		{
 		var cachedPackages = await nugetPackageService.ListCachedPackagesAsync (cacheDirectory);
+		var wasValidatingCachedPackages = false;
+		if (cachedPackages.Count > 0)
+			{
+			wasValidatingCachedPackages = true;
+			SetStatus ($"Validating {cachedPackages.Count} cached package(s) for newer versions...", isError: false);
+			await FlagCachedPackagesWithNewerVersionsAsync (cachedPackages);
+			}
+
 		CachedPackages.Clear ();
 		foreach (var cachedPackage in cachedPackages)
 			{
 			CachedPackages.Add (new CachedPackageInfoViewModel (cachedPackage));
 			}
 
+		SelectedCachedPackage = CachedPackages.FirstOrDefault (package => SelectedCachedPackage is not null && string.Equals (package.Model.CacheKey, SelectedCachedPackage.Model.CacheKey, StringComparison.Ordinal));
+
 		ShowCachedPackageInfoCommand.RaiseCanExecuteChanged ();
 		UseCachedPackageCommand.RaiseCanExecuteChanged ();
 		DeleteCachedPackageCommand.RaiseCanExecuteChanged ();
+
+		if (wasValidatingCachedPackages
+			&& !IsStatusError
+			&& statusMessage.StartsWith ("Validating ", StringComparison.Ordinal))
+			{
+			StatusMessage = "Ready.";
+			}
+		}
+
+	private async Task FlagCachedPackagesWithNewerVersionsAsync (IReadOnlyList<CachedPackageInfo> cachedPackages)
+		{
+		foreach (var cachedPackage in cachedPackages)
+			{
+			try
+				{
+				var latestVersion = await nugetPackageService.GetLatestVersionAsync (FeedUrl, cachedPackage.PackageId);
+				cachedPackage.LatestAvailableVersion = latestVersion;
+				cachedPackage.HasNewerVersionAvailable = IsNewerVersionAvailable (cachedPackage.Version, latestVersion);
+				}
+			catch (Exception)
+				{
+				cachedPackage.LatestAvailableVersion = null;
+				cachedPackage.HasNewerVersionAvailable = false;
+				}
+			}
+		}
+
+	private static bool IsNewerVersionAvailable (string currentVersion, string? latestVersion)
+		{
+		if (string.IsNullOrWhiteSpace (latestVersion)
+			|| !NuGet.Versioning.NuGetVersion.TryParse (currentVersion, out var current)
+			|| !NuGet.Versioning.NuGetVersion.TryParse (latestVersion, out var latest))
+			{
+			return false;
+			}
+
+		return latest > current;
 		}
 
 	private async Task InstallAsync ()
@@ -624,10 +887,114 @@ public sealed class MainViewModel : ObservableObject
 				}
 			}
 
+		appSettings.LastUsedProcessorHost = selectedProcessors[0].Host;
+		await PersistAppSettingsAsync ();
+
 		await RefreshSavedProcessorsAsync ();
 
 		StatusMessage = selectedProcessors.Length == 1
 			? "Driver package uploaded to /user/ThirdPartyDrivers/Import."
 			: $"Driver package uploaded to {selectedProcessors.Length} processors.";
+		}
+
+	private async Task InitializeAsync ()
+		{
+		appSettings = await appSettingsStore.LoadAsync ();
+		if (!string.IsNullOrWhiteSpace (appSettings.FeedUrl))
+			{
+			feedUrl = appSettings.FeedUrl;
+			}
+
+		if (!string.IsNullOrWhiteSpace (appSettings.CacheDirectory))
+			{
+			cacheDirectory = appSettings.CacheDirectory;
+			}
+
+		await RefreshSavedProcessorsAsync ();
+		await RefreshCachedPackagesAsync ();
+		RestoreLastUsedProcessorSelection ();
+		}
+
+	private async Task<DriverPackageInfo> InspectCachedPackageAsync (CachedPackageInfoViewModel cachedPackage)
+		{
+		var extractDirectory = Path.Combine (cacheDirectory, "Extracted", cachedPackage.PackageId, cachedPackage.Version);
+		return await packageInspectionService.InspectPackageAsync (cachedPackage.PackageId, cachedPackage.Version, cachedPackage.Model.PackageArchivePath, extractDirectory);
+		}
+
+	private void RestoreLastUsedProcessorSelection ()
+		{
+		if (string.IsNullOrWhiteSpace (appSettings.LastUsedProcessorHost))
+			{
+			return;
+			}
+
+		var matchingProcessor = SavedProcessors.FirstOrDefault (processor => string.Equals (processor.Host, appSettings.LastUsedProcessorHost, StringComparison.OrdinalIgnoreCase));
+		if (matchingProcessor is not null && !ReferenceEquals (matchingProcessor, SelectedSavedProcessor))
+			{
+			SelectedSavedProcessor = matchingProcessor;
+			}
+		}
+
+	public void PersistSelectedProcessorDraft ()
+		{
+		PersistSelectedProcessorDraft (SelectedSavedProcessor);
+		}
+
+	private void PersistSelectedProcessorDraft (SavedProcessorCredentialViewModel? processor)
+		{
+		if (isApplyingSelectedProcessor || processor is null || string.IsNullOrWhiteSpace (processor.Host))
+			{
+			return;
+			}
+
+		var updatedCredential = new SavedProcessorCredential
+			{
+			DisplayName = ProcessorDisplayName,
+			Host = ProcessorHost,
+			Port = processor.Port,
+			Username = Username,
+			Password = Password
+			};
+
+		var existingIndex = SavedProcessors
+			.Select ((savedProcessor, index) => new { savedProcessor, index })
+			.FirstOrDefault (entry => string.Equals (entry.savedProcessor.Host, processor.Host, StringComparison.OrdinalIgnoreCase))?
+			.index;
+
+		if (existingIndex is int index)
+			{
+			SavedProcessors[index].Update (updatedCredential);
+			}
+
+		if (RememberCredentials && !string.IsNullOrWhiteSpace (updatedCredential.Host))
+			{
+			_ = credentialStore.SaveAsync (new ProcessorConnectionInfo
+				{
+				DisplayName = updatedCredential.DisplayName,
+				Host = updatedCredential.Host,
+				Port = updatedCredential.Port,
+				Username = updatedCredential.Username,
+				Password = updatedCredential.Password,
+				RememberCredentials = true
+				});
+			}
+		}
+
+	private void PersistAppSettings ()
+		{
+		_ = PersistAppSettingsAsync ();
+		}
+
+	private async Task PersistAppSettingsAsync ()
+		{
+		try
+			{
+			appSettings.FeedUrl = FeedUrl;
+			appSettings.CacheDirectory = cacheDirectory;
+			await appSettingsStore.SaveAsync (appSettings);
+			}
+		catch (Exception)
+			{
+			}
 		}
 	}

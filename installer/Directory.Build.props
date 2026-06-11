@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'CrestronHomeDriverFeedInstaller.Setup.Build'">
+	<BaseIntermediateOutputPath>obj\build-wrapper\</BaseIntermediateOutputPath>
+	<MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+  </PropertyGroup>
+</Project>

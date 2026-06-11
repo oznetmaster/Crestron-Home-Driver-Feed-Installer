@@ -1,0 +1,30 @@
+<!--
+  Copyright ©2026 Neil Colvin
+  Licensed under the MIT License. See LICENSE file in the project root for full license information.
+-->
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+	<OutputType>Package</OutputType>
+	<Platforms>AnyCPU;x64</Platforms>
+	<Platform Condition="'$(Platform)' == ''">AnyCPU</Platform>
+	<InstallerPlatform>x64</InstallerPlatform>
+	<EnableDefaultItems>false</EnableDefaultItems>
+	<OutputName>Crestron Home Driver Feed Installer</OutputName>
+	<AppProject>$(MSBuildThisFileDirectory)..\src\CrestronHomeDriverFeedInstaller.App\CrestronHomeDriverFeedInstaller.App.csproj</AppProject>
+	<PublishDir>$(BaseIntermediateOutputPath)publish\</PublishDir>
+	<DefineConstants>$(DefineConstants);PublishDir=$(PublishDir)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+	<PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+	<Compile Include="Product.wxs" />
+  </ItemGroup>
+
+  <Target Name="PublishApplication" BeforeTargets="BeforeBuild">
+	<RemoveDir Directories="$(PublishDir)" Condition="Exists('$(PublishDir)')" />
+	<Exec Command="dotnet publish &quot;$(AppProject)&quot; -c $(Configuration) -r win-x64 --self-contained false -p:PublishSingleFile=false -o &quot;$(PublishDir)&quot;" />
+  </Target>
+</Project>

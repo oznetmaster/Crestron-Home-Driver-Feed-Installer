@@ -1,3 +1,6 @@
+// Copyright ©2026 Neil Colvin
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
+
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -13,7 +16,7 @@ public sealed class ProtectedCredentialStore : ICredentialStore
 
 	public ProtectedCredentialStore ()
 		{
-		storeDirectory = Path.Combine (Environment.GetFolderPath (Environment.SpecialFolder.LocalApplicationData), "NugetForCrestronDrivers", "Credentials");
+		storeDirectory = Path.Combine (Environment.GetFolderPath (Environment.SpecialFolder.LocalApplicationData), "CrestronHomeDriverFeedInstaller", "Credentials");
 		Directory.CreateDirectory (storeDirectory);
 		}
 

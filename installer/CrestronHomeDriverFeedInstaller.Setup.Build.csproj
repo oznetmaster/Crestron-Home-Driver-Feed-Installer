@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+	 <TargetFramework>net10.0</TargetFramework>
+	 <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+	 <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+	 <EnableDefaultNoneItems>false</EnableDefaultNoneItems>
+	 <NoWarn>$(NoWarn);NETSDK1138</NoWarn>
+	 <BootstrapperProject>$(MSBuildThisFileDirectory)CrestronHomeDriverFeedInstaller.Bootstrapper.wixproj</BootstrapperProject>
+		 <DisableFastUpToDateCheck Condition="'$(Configuration)' == 'Release'">true</DisableFastUpToDateCheck>
+  </PropertyGroup>
+
+	<Target Name="BuildInstaller" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+	 <Exec Command="dotnet build &quot;$(BootstrapperProject)&quot; -c $(Configuration)" />
+  </Target>
+
+	<ItemGroup>
+	  <Content Include="Assets\BootstrapperTheme.xml" />
+	</ItemGroup>
+
+  <ItemGroup>
+    <None Include="Assets\BootstrapperTheme.wxl" />
+    <None Include="Assets\License.rtf" />
+    <None Include="Bundle.wxs" />
+    <None Include="CrestronHomeDriverFeedInstaller.Bootstrapper.wixproj" />
+	 <None Include="CrestronHomeDriverFeedInstaller.Setup.wixproj" />
+    <None Include="Directory.Build.props" />
+  </ItemGroup>
+</Project>

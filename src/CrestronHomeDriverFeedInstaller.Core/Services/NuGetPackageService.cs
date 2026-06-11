@@ -1,3 +1,6 @@
+// Copyright ©2026 Neil Colvin
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
+
 using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Packaging;
@@ -159,6 +162,24 @@ public sealed class NuGetPackageService : INuGetPackageService
 		return packagePath;
 		}
 
+	public async Task<string?> GetLatestVersionAsync (string feedUrl, string packageId, CancellationToken cancellationToken = default)
+		{
+		var repository = CreateRepository (feedUrl);
+		var metadataResource = await repository.GetResourceAsync<PackageMetadataResource> (cancellationToken);
+		var cache = new SourceCacheContext ();
+		var metadata = (await metadataResource.GetMetadataAsync (packageId, includePrerelease: false, includeUnlisted: false, cache, NullLogger.Instance, cancellationToken)).ToArray ();
+		if (metadata.Length == 0)
+			{
+			return null;
+			}
+
+		return metadata
+			.Select (item => item.Identity.Version)
+			.OrderByDescending (version => version)
+			.FirstOrDefault ()?
+			.ToNormalizedString ();
+		}
+
 	public Task<IReadOnlyList<CachedPackageInfo>> ListCachedPackagesAsync (string cacheDirectory, CancellationToken cancellationToken = default)
 		{
 		Directory.CreateDirectory (cacheDirectory);
@@ -190,6 +211,8 @@ public sealed class NuGetPackageService : INuGetPackageService
 					{
 					PackageId = packageId,
 					Version = version,
+					Authors = string.Join (", ", nuspecReader.GetAuthors ()),
+					Description = nuspecReader.GetDescription () ?? string.Empty,
 					PackageArchivePath = packagePath,
 					ExtractedDriverPackagePath = extractedPackagePath
 					});

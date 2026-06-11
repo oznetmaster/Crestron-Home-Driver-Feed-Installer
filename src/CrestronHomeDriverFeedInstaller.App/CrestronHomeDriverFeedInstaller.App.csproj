@@ -11,12 +11,26 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <AssemblyName>CrestronHomeDriverFeedInstaller.App</AssemblyName>
+  <AssemblyName>Crestron Home Driver Feed Installer</AssemblyName>
     <RootNamespace>CrestronHomeDriverFeedInstaller.App</RootNamespace>
+    <ApplicationIcon>..\Resources\variant_1_blue_light_transparent.ico</ApplicationIcon>
+  <Product>Crestron Home Driver Feed Installer</Product>
+   <Title>Crestron Home Driver Feed Installer</Title>
+    <Authors>Neil Colvin</Authors>
+    <Company>Neil Colvin</Company>
+    <Copyright>Copyright ©2026 Neil Colvin</Copyright>
+    <RepositoryUrl>https://github.com/oznetmaster/CrestronHomeDriverFeedInstaller</RepositoryUrl>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="RepositoryUrl" Value="https://github.com/oznetmaster/CrestronHomeDriverFeedInstaller" />
+  </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

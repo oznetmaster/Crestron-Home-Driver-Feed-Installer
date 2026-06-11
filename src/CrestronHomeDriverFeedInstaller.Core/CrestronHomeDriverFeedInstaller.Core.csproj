@@ -2,6 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <Authors>Neil Colvin</Authors>
+    <Company>Neil Colvin</Company>
+    <Copyright>Copyright ©2026 Neil Colvin</Copyright>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>CrestronHomeDriverFeedInstaller.Core</AssemblyName>

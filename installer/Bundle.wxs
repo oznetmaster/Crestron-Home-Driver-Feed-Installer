@@ -1,0 +1,42 @@
+<!--
+  Copyright ©2026 Neil Colvin
+  Licensed under the MIT License. See LICENSE file in the project root for full license information.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+	 xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
+	<Bundle Name="Crestron Home Driver Feed Installer"
+		  Manufacturer="Neil Colvin"
+		  Version="1.0.0"
+		  UpgradeCode="B5E9C15D-5D34-40A5-A7A3-86E22FA1B3E8"
+	  IconSourceFile="..\src\Resources\variant_1_blue_light.ico">
+
+	<BootstrapperApplication>
+	  <bal:WixStandardBootstrapperApplication Theme="rtfLicense"
+							   LogoFile="Assets\BootstrapperLogo.png"
+							   ThemeFile="Assets\BootstrapperTheme.xml"
+							   LocalizationFile="Assets\BootstrapperTheme.wxl"
+							   LicenseFile="Assets\License.rtf" />
+	</BootstrapperApplication>
+
+	<Chain DisableSystemRestore="yes">
+	  <ExePackage Id="DotNetDesktopRuntime"
+				  DisplayName=".NET 10 Desktop Runtime"
+				  Cache="remove"
+				  PerMachine="yes"
+				  Permanent="yes"
+				  Vital="yes"
+				  Compressed="no"
+				  DetectCondition="VersionNT64 AND NOT WixBundleInstalled"
+				  DownloadUrl="https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.9/windowsdesktop-runtime-10.0.9-win-x64.exe"
+				  InstallArguments="/install /quiet /norestart"
+				  RepairArguments="/repair /quiet /norestart"
+				  UninstallArguments="/uninstall /quiet /norestart"
+				  SourceFile="windowsdesktop-runtime-10.0.9-win-x64.exe" />
+
+		<MsiPackage Id="MainApplicationMsi"
+				  SourceFile="$(var.SetupMsiPath)"
+				  Visible="no"
+				  Vital="yes" />
+	</Chain>
+  </Bundle>
+</Wix>

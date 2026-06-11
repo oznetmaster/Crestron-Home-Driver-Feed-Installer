@@ -1,3 +1,6 @@
+// Copyright ©2026 Neil Colvin
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
+
 using System.Windows;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +20,7 @@ public partial class App : Application
 		base.OnStartup (e);
 
 		var services = new ServiceCollection ();
+		services.AddSingleton<IAppSettingsStore, JsonAppSettingsStore> ();
 		services.AddSingleton<INuGetPackageService, NuGetPackageService> ();
 		services.AddSingleton<IPackageInspectionService, PackageInspectionService> ();
 		services.AddSingleton<ICredentialStore, ProtectedCredentialStore> ();
