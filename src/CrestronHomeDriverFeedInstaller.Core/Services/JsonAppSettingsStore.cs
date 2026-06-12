@@ -16,10 +16,12 @@ public sealed class JsonAppSettingsStore : IAppSettingsStore
 		};
 
 	private readonly string settingsPath;
+	private readonly IAppDataPathProvider appDataPathProvider;
 
-	public JsonAppSettingsStore ()
+	public JsonAppSettingsStore (IAppDataPathProvider appDataPathProvider)
 		{
-		var settingsDirectory = Path.Combine (Environment.GetFolderPath (Environment.SpecialFolder.LocalApplicationData), "CrestronHomeDriverFeedInstaller");
+		this.appDataPathProvider = appDataPathProvider;
+		var settingsDirectory = appDataPathProvider.ApplicationDataDirectory;
 		Directory.CreateDirectory (settingsDirectory);
 		settingsPath = Path.Combine (settingsDirectory, "settings.json");
 		}
@@ -38,23 +40,42 @@ public sealed class JsonAppSettingsStore : IAppSettingsStore
 		{
 		if (!File.Exists (settingsPath))
 			{
-			return new AppSettings (); 
+			return CreateDefaultSettings ();
 			}
 
 		try
 			{
 			using var stream = File.OpenRead (settingsPath);
-			return JsonSerializer.Deserialize<AppSettings> (stream, SerializerOptions) ?? new AppSettings ();
+			var settings = JsonSerializer.Deserialize<AppSettings> (stream, SerializerOptions) ?? CreateDefaultSettings ();
+			ApplyDefaults (settings);
+			return settings;
 			}
 		catch (Exception)
 			{
-			return new AppSettings ();
+			return CreateDefaultSettings ();
 			}
 		}
 
 	public void Save (AppSettings settings)
 		{
+		ApplyDefaults (settings);
 		using var stream = File.Create (settingsPath);
 		JsonSerializer.Serialize (stream, settings, SerializerOptions);
+		}
+
+	private AppSettings CreateDefaultSettings ()
+		{
+		return new AppSettings
+			{
+			CacheDirectory = appDataPathProvider.CacheDirectory
+			};
+		}
+
+	private void ApplyDefaults (AppSettings settings)
+		{
+		if (string.IsNullOrWhiteSpace (settings.CacheDirectory))
+			{
+			settings.CacheDirectory = appDataPathProvider.CacheDirectory;
+			}
 		}
 	}

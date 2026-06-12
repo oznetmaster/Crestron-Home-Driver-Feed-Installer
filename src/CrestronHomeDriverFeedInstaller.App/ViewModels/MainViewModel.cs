@@ -23,12 +23,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 	private readonly INuGetPackageService nugetPackageService;
 	private readonly IPackageInspectionService packageInspectionService;
 	private readonly IAppSettingsStore appSettingsStore;
+	private readonly IAppDataPathProvider appDataPathProvider;
 	private readonly ICredentialStore credentialStore;
 	private readonly IProcessorDiscoveryService processorDiscoveryService;
 	private readonly ISftpDriverDeploymentService sftpDriverDeploymentService;
 	private readonly CancellationTokenSource cacheRefreshCancellationTokenSource = new ();
+	private readonly SemaphoreSlim cachedPackageRefreshSemaphore = new (1, 1);
 	private AppSettings appSettings = new ();
-	private string cacheDirectory = new AppSettings ().CacheDirectory;
+	private string cacheDirectory;
+	private readonly string extractedPackageDirectory;
 	private string feedUrl = "https://api.nuget.org/v3/index.json";
 	private string searchTerm = "Crestron";
 	private string processorDisplayName = string.Empty;
@@ -55,16 +58,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 	private IReadOnlyList<CachedPackageInfoViewModel> selectedCachedPackages = Array.Empty<CachedPackageInfoViewModel> ();
 	private bool isDiscoveringProcessors;
 	private bool isApplyingSelectedProcessor;
-	private bool isRefreshingCachedPackages;
 
-	public MainViewModel (INuGetPackageService nugetPackageService, IPackageInspectionService packageInspectionService, IAppSettingsStore appSettingsStore, ICredentialStore credentialStore, IProcessorDiscoveryService processorDiscoveryService, ISftpDriverDeploymentService sftpDriverDeploymentService)
+	public MainViewModel (INuGetPackageService nugetPackageService, IPackageInspectionService packageInspectionService, IAppSettingsStore appSettingsStore, IAppDataPathProvider appDataPathProvider, ICredentialStore credentialStore, IProcessorDiscoveryService processorDiscoveryService, ISftpDriverDeploymentService sftpDriverDeploymentService)
 		{
 		this.nugetPackageService = nugetPackageService;
 		this.packageInspectionService = packageInspectionService;
 		this.appSettingsStore = appSettingsStore;
+		this.appDataPathProvider = appDataPathProvider;
 		this.credentialStore = credentialStore;
 		this.processorDiscoveryService = processorDiscoveryService;
 		this.sftpDriverDeploymentService = sftpDriverDeploymentService;
+		cacheDirectory = appDataPathProvider.CacheDirectory;
+		extractedPackageDirectory = appDataPathProvider.ExtractedPackageDirectory;
 		SearchResults = new ObservableCollection<PackageSearchResultViewModel> ();
 		SavedProcessors = new ObservableCollection<SavedProcessorCredentialViewModel> ();
 		CachedPackages = new ObservableCollection<CachedPackageInfoViewModel> ();
@@ -85,6 +90,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 		{
 		cacheRefreshCancellationTokenSource.Cancel ();
 		cacheRefreshCancellationTokenSource.Dispose ();
+		cachedPackageRefreshSemaphore.Dispose ();
 		}
 
 	public ObservableCollection<PackageSearchResultViewModel> SearchResults
@@ -591,32 +597,52 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
 	private async Task UpdateSelectedCachedPackagesAsync ()
 		{
-		var selectedPackages = SelectedCachedPackages
-			.Where (package => package.HasNewerVersionAvailable && !string.IsNullOrWhiteSpace (package.LatestAvailableVersion))
-			.ToArray ();
+		var selectedPackages = SelectedCachedPackages.ToArray ();
 		if (selectedPackages.Length == 0)
+			{
+			return;
+			}
+
+		var packagesToUpdate = new List<(CachedPackageInfoViewModel Package, string LatestVersion)> ();
+		foreach (var cachedPackage in selectedPackages)
+			{
+			try
+				{
+				var latestVersion = await nugetPackageService.GetLatestVersionAsync (FeedUrl, cachedPackage.PackageId);
+				if (IsNewerVersionAvailable (cachedPackage.Version, latestVersion) && !string.IsNullOrWhiteSpace (latestVersion))
+					{
+					packagesToUpdate.Add ((cachedPackage, latestVersion));
+					}
+				}
+			catch (Exception)
+				{
+				}
+			}
+
+		if (packagesToUpdate.Count == 0)
 			{
 			SetStatus ("No selected cached packages have updates available.", isError: false);
 			return;
 			}
 
-		for (var index = 0; index < selectedPackages.Length; index++)
+		for (var index = 0; index < packagesToUpdate.Count; index++)
 			{
-			var cachedPackage = selectedPackages[index];
-			StatusMessage = selectedPackages.Length == 1
+			var packageToUpdate = packagesToUpdate[index];
+			var cachedPackage = packageToUpdate.Package;
+			StatusMessage = packagesToUpdate.Count == 1
 				? $"Updating cached package {cachedPackage.DisplayLabel}..."
-				: $"Updating cached package {index + 1} of {selectedPackages.Length}: {cachedPackage.DisplayLabel}...";
+				: $"Updating cached package {index + 1} of {packagesToUpdate.Count}: {cachedPackage.DisplayLabel}...";
 
 			await nugetPackageService.DeleteCachedPackageAsync (cachedPackage.Model);
-			await nugetPackageService.DownloadPackageAsync (FeedUrl, cachedPackage.PackageId, cachedPackage.LatestAvailableVersion!, cacheDirectory);
+			await nugetPackageService.DownloadPackageAsync (FeedUrl, cachedPackage.PackageId, packageToUpdate.LatestVersion, cacheDirectory);
 			}
 
 		await RefreshCachedPackagesAsync ();
 		SelectedCachedPackages = Array.Empty<CachedPackageInfoViewModel> ();
 		SelectedCachedPackageDetails = _selectedCachedPackageInfoMessage;
-		StatusMessage = selectedPackages.Length == 1
+		StatusMessage = packagesToUpdate.Count == 1
 			? "Updated 1 cached package to the latest version."
-			: $"Updated {selectedPackages.Length} cached packages to the latest versions.";
+			: $"Updated {packagesToUpdate.Count} cached packages to the latest versions.";
 		}
 
 	private async Task ApplySelectedProcessorAsync (SavedProcessorCredentialViewModel? processor)
@@ -810,15 +836,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
 	private async Task RefreshCachedPackagesAsync (bool showValidationStatus = true)
 		{
-		if (isRefreshingCachedPackages)
-			{
-			return;
-			}
-
-		isRefreshingCachedPackages = true;
+		await cachedPackageRefreshSemaphore.WaitAsync ();
 		try
 			{
-		var cachedPackages = await nugetPackageService.ListCachedPackagesAsync (cacheDirectory);
+		var cachedPackages = await nugetPackageService.ListCachedPackagesAsync (cacheDirectory, extractedPackageDirectory);
 		var wasValidatingCachedPackages = false;
 		if (cachedPackages.Count > 0)
 			{
@@ -852,7 +873,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 			}
 		finally
 			{
-			isRefreshingCachedPackages = false;
+			cachedPackageRefreshSemaphore.Release ();
 			}
 		}
 
@@ -986,7 +1007,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
 	private async Task<DriverPackageInfo> InspectCachedPackageAsync (CachedPackageInfoViewModel cachedPackage)
 		{
-		var extractDirectory = Path.Combine (cacheDirectory, "Extracted", cachedPackage.PackageId, cachedPackage.Version);
+		var extractDirectory = Path.Combine (extractedPackageDirectory, cachedPackage.PackageId, cachedPackage.Version);
 		return await packageInspectionService.InspectPackageAsync (cachedPackage.PackageId, cachedPackage.Version, cachedPackage.Model.PackageArchivePath, extractDirectory);
 		}
 

@@ -13,7 +13,7 @@ public interface INuGetPackageService
 
 	Task<string?> GetLatestVersionAsync (string feedUrl, string packageId, CancellationToken cancellationToken = default);
 
-	Task<IReadOnlyList<CachedPackageInfo>> ListCachedPackagesAsync (string cacheDirectory, CancellationToken cancellationToken = default);
+	Task<IReadOnlyList<CachedPackageInfo>> ListCachedPackagesAsync (string cacheDirectory, string extractedDirectory, CancellationToken cancellationToken = default);
 
 	Task DeleteCachedPackageAsync (CachedPackageInfo cachedPackage, CancellationToken cancellationToken = default);
 	}

@@ -213,23 +213,23 @@
                     </Grid.RowDefinitions>
                     <TextBox Text="{Binding StagedDriverPackagePath}" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True" Margin="0,0,0,8" ToolTip="Path to the currently staged driver package." />
                     <TabControl Grid.Row="1">
-                        <TabItem>
+                        <TabItem x:Name="EntriesTabItem">
                             <TabItem.Header>
                                 <TextBlock Text="Entries" ToolTip="Entries in the staged driver package." />
                             </TabItem.Header>
-                            <TextBox Text="{Binding PackageEntries}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" IsReadOnly="True" />
+                            <TextBox x:Name="EntriesTextBox" Text="{Binding PackageEntries}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" IsReadOnly="True" TextChanged="PackageTabTextBox_OnTextChanged" />
                         </TabItem>
-                        <TabItem>
+                        <TabItem x:Name="ManifestTabItem">
                             <TabItem.Header>
                                 <TextBlock Text="Manifest" ToolTip="Contents of the staged crestron-driver-package.json file." />
                             </TabItem.Header>
-                            <TextBox Text="{Binding CrestronDriverPackageJsonContent}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" IsReadOnly="True" />
+                            <TextBox x:Name="ManifestTextBox" Text="{Binding CrestronDriverPackageJsonContent}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" IsReadOnly="True" TextChanged="PackageTabTextBox_OnTextChanged" />
                         </TabItem>
-                        <TabItem>
+                        <TabItem x:Name="ReadmeTabItem">
                             <TabItem.Header>
                                 <TextBlock Text="README" ToolTip="Contents of the staged README.md file." />
                             </TabItem.Header>
-                            <TextBox Text="{Binding ReadmeContent}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="Wrap" IsReadOnly="True" />
+                            <TextBox x:Name="ReadmeTextBox" Text="{Binding ReadmeContent}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="Wrap" IsReadOnly="True" TextChanged="PackageTabTextBox_OnTextChanged" />
                         </TabItem>
                     </TabControl>
                 </Grid>

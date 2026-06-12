@@ -1,8 +1,6 @@
 // Copyright ©2026 Neil Colvin
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 
 using CrestronHomeDriverFeedInstaller.Core.Abstractions;
@@ -13,10 +11,12 @@ namespace CrestronHomeDriverFeedInstaller.Core.Services;
 public sealed class ProtectedCredentialStore : ICredentialStore
 	{
 	private readonly string storeDirectory;
+	private readonly ICredentialProtector credentialProtector;
 
-	public ProtectedCredentialStore ()
+	public ProtectedCredentialStore (IAppDataPathProvider appDataPathProvider, ICredentialProtector credentialProtector)
 		{
-		storeDirectory = Path.Combine (Environment.GetFolderPath (Environment.SpecialFolder.LocalApplicationData), "CrestronHomeDriverFeedInstaller", "Credentials");
+		storeDirectory = Path.Combine (appDataPathProvider.ApplicationDataDirectory, "Credentials");
+		this.credentialProtector = credentialProtector;
 		Directory.CreateDirectory (storeDirectory);
 		}
 
@@ -30,7 +30,7 @@ public sealed class ProtectedCredentialStore : ICredentialStore
 			try
 				{
 				var encrypted = await File.ReadAllBytesAsync (path, cancellationToken);
-				var decrypted = ProtectedData.Unprotect (encrypted, optionalEntropy: null, DataProtectionScope.CurrentUser);
+				var decrypted = credentialProtector.Unprotect (encrypted);
 				var credential = JsonSerializer.Deserialize<SavedProcessorCredential> (decrypted);
 				if (credential is not null)
 					{
@@ -57,7 +57,7 @@ public sealed class ProtectedCredentialStore : ICredentialStore
 			}
 
 		var encrypted = await File.ReadAllBytesAsync (path, cancellationToken);
-		var decrypted = ProtectedData.Unprotect (encrypted, optionalEntropy: null, DataProtectionScope.CurrentUser);
+		var decrypted = credentialProtector.Unprotect (encrypted);
 		return JsonSerializer.Deserialize<SavedProcessorCredential> (decrypted);
 		}
 
@@ -73,7 +73,7 @@ public sealed class ProtectedCredentialStore : ICredentialStore
 			};
 
 		var json = JsonSerializer.SerializeToUtf8Bytes (payload);
-		var encrypted = ProtectedData.Protect (json, optionalEntropy: null, DataProtectionScope.CurrentUser);
+		var encrypted = credentialProtector.Protect (json);
 		await File.WriteAllBytesAsync (GetPath (connectionInfo.Host, connectionInfo.Port), encrypted, cancellationToken);
 		}
 

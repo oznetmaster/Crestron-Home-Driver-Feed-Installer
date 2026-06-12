@@ -230,6 +230,25 @@ public partial class MainWindow : Window
 		viewModel.SelectedPackage = dataGrid.SelectedItem as PackageSearchResultViewModel;
 		}
 
+	private void PackageTabTextBox_OnTextChanged (object sender, TextChangedEventArgs e)
+		{
+		if (sender is not TextBox textBox)
+			{
+			return;
+			}
+
+		var activeTabMatches = ReferenceEquals (textBox, ReadmeTextBox) && ReadmeTabItem.IsSelected
+			|| ReferenceEquals (textBox, EntriesTextBox) && EntriesTabItem.IsSelected
+			|| ReferenceEquals (textBox, ManifestTextBox) && ManifestTabItem.IsSelected;
+
+		if (!activeTabMatches)
+			{
+			return;
+			}
+
+		textBox.ScrollToHome ();
+		}
+
 	private void ApplyWindowSettings (AppSettings settings)
 		{
 		if (settings.WindowLeft is null || settings.WindowTop is null || settings.WindowWidth is null || settings.WindowHeight is null)

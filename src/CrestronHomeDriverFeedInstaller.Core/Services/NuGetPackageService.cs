@@ -131,6 +131,7 @@ public sealed class NuGetPackageService : INuGetPackageService
 	public async Task<string> DownloadPackageAsync (string feedUrl, string packageId, string version, string cacheDirectory, CancellationToken cancellationToken = default)
 		{
 		Directory.CreateDirectory (cacheDirectory);
+		NormalizeCachedPackageVersions (cacheDirectory, extractedDirectory: null, packageId);
 
 		var packagePath = Path.Combine (cacheDirectory, $"{packageId}.{version}.nupkg");
 		if (File.Exists (packagePath))
@@ -158,6 +159,7 @@ public sealed class NuGetPackageService : INuGetPackageService
 		await using var targetStream = File.Create (packagePath);
 		await sourceStream.CopyToAsync (targetStream, cancellationToken);
 		await targetStream.FlushAsync (cancellationToken);
+		NormalizeCachedPackageVersions (cacheDirectory, extractedDirectory: null, packageId);
 
 		return packagePath;
 		}
@@ -196,10 +198,12 @@ public sealed class NuGetPackageService : INuGetPackageService
 			.ToNormalizedString ();
 		}
 
-	public Task<IReadOnlyList<CachedPackageInfo>> ListCachedPackagesAsync (string cacheDirectory, CancellationToken cancellationToken = default)
+	public Task<IReadOnlyList<CachedPackageInfo>> ListCachedPackagesAsync (string cacheDirectory, string extractedDirectory, CancellationToken cancellationToken = default)
 		{
 		Directory.CreateDirectory (cacheDirectory);
-		var extractedRoot = Path.Combine (cacheDirectory, "Extracted");
+		Directory.CreateDirectory (extractedDirectory);
+		NormalizeCachedPackageVersions (cacheDirectory, extractedDirectory, packageId: null);
+		var extractedRoot = extractedDirectory;
 		var extractedPackages = new Dictionary<string, string> (StringComparer.OrdinalIgnoreCase);
 		if (Directory.Exists (extractedRoot))
 			{
@@ -243,21 +247,91 @@ public sealed class NuGetPackageService : INuGetPackageService
 
 	public Task DeleteCachedPackageAsync (CachedPackageInfo cachedPackage, CancellationToken cancellationToken = default)
 		{
-		if (File.Exists (cachedPackage.PackageArchivePath))
+		DeleteCachedPackageArtifacts (cachedPackage.PackageArchivePath, cachedPackage.ExtractedDriverPackagePath);
+
+		return Task.CompletedTask;
+		}
+
+	private static void NormalizeCachedPackageVersions (string cacheDirectory, string? extractedDirectory, string? packageId)
+		{
+		if (!Directory.Exists (cacheDirectory))
 			{
-			File.Delete (cachedPackage.PackageArchivePath);
+			return;
 			}
 
-		if (!string.IsNullOrWhiteSpace (cachedPackage.ExtractedDriverPackagePath))
+		var cachedPackages = new List<CachedPackageInfo> ();
+		foreach (var packagePath in Directory.EnumerateFiles (cacheDirectory, "*.nupkg", SearchOption.TopDirectoryOnly))
 			{
-			var extractedVersionDirectory = Path.GetDirectoryName (cachedPackage.ExtractedDriverPackagePath);
+			try
+				{
+				using var packageArchiveReader = new PackageArchiveReader (packagePath);
+				var nuspecReader = packageArchiveReader.NuspecReader;
+				var discoveredPackageId = nuspecReader.GetId ();
+				if (!string.IsNullOrWhiteSpace (packageId)
+					&& !string.Equals (discoveredPackageId, packageId, StringComparison.OrdinalIgnoreCase))
+					{
+					continue;
+					}
+
+				cachedPackages.Add (new CachedPackageInfo
+					{
+					PackageId = discoveredPackageId,
+					Version = nuspecReader.GetVersion ().ToNormalizedString (),
+					PackageArchivePath = packagePath,
+					ExtractedDriverPackagePath = ResolveExtractedDriverPackagePath (extractedDirectory, discoveredPackageId, nuspecReader.GetVersion ().ToNormalizedString ())
+					});
+				}
+			catch
+				{
+				}
+			}
+
+		foreach (var duplicateGroup in cachedPackages
+			.GroupBy (cachedPackage => cachedPackage.PackageId, StringComparer.OrdinalIgnoreCase)
+			.Where (group => group.Count () > 1))
+			{
+			var packageToKeep = duplicateGroup
+				.OrderByDescending (cachedPackage => NuGetVersion.Parse (cachedPackage.Version))
+				.First ();
+
+			foreach (var packageToDelete in duplicateGroup.Where (cachedPackage => !ReferenceEquals (cachedPackage, packageToKeep)))
+				{
+				DeleteCachedPackageArtifacts (packageToDelete.PackageArchivePath, packageToDelete.ExtractedDriverPackagePath);
+				}
+			}
+		}
+
+	private static string? ResolveExtractedDriverPackagePath (string? extractedDirectory, string packageId, string version)
+		{
+		if (string.IsNullOrWhiteSpace (extractedDirectory) || !Directory.Exists (extractedDirectory))
+			{
+			return null;
+			}
+
+		var extractedVersionDirectory = Path.Combine (extractedDirectory, packageId, version);
+		if (!Directory.Exists (extractedVersionDirectory))
+			{
+			return null;
+			}
+
+		return Directory.EnumerateFiles (extractedVersionDirectory, "*.pkg", SearchOption.AllDirectories).FirstOrDefault ();
+		}
+
+	private static void DeleteCachedPackageArtifacts (string packageArchivePath, string? extractedDriverPackagePath)
+		{
+		if (File.Exists (packageArchivePath))
+			{
+			File.Delete (packageArchivePath);
+			}
+
+		if (!string.IsNullOrWhiteSpace (extractedDriverPackagePath))
+			{
+			var extractedVersionDirectory = Path.GetDirectoryName (extractedDriverPackagePath);
 			if (!string.IsNullOrWhiteSpace (extractedVersionDirectory) && Directory.Exists (extractedVersionDirectory))
 				{
 				Directory.Delete (extractedVersionDirectory, recursive: true);
 				}
 			}
-
-		return Task.CompletedTask;
 		}
 
 	private static SourceRepository CreateRepository (string feedUrl)
