@@ -17,7 +17,9 @@
 
   <ItemGroup>
     <PackageReference Include="NuGet.Protocol" Version="7.6.0" />
-    <PackageReference Include="SSH.NET" Version="2025.1.0" />
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
+    <!-- NuGet.Protocol's transitive PKCS version predates the October 2026 security fixes. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
 
 </Project>
