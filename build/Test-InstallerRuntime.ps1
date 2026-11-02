@@ -4,10 +4,21 @@ param([string]$Root = (Split-Path $PSScriptRoot -Parent), [string]$Configuration
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Root = [IO.Path]::GetFullPath($Root)
+[xml]$appProject = Get-Content -LiteralPath (Join-Path $Root 'src/CrestronHomeDriverFeedInstaller.App/CrestronHomeDriverFeedInstaller.App.csproj') -Raw
+$appVersion = $appProject.SelectSingleNode('/Project/PropertyGroup/Version').InnerText
+if ($appVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'Application version must contain three numeric parts.' }
+foreach ($source in @('installer/Bundle.wxs', 'installer/Product.wxs')) {
+    [xml]$sourceXml = Get-Content -LiteralPath (Join-Path $Root $source) -Raw
+    $versionNode = $sourceXml.SelectSingleNode('/*/*/@Version')
+    if ($null -eq $versionNode -or $versionNode.Value -cne $appVersion) { throw "Installer version differs from application: $source." }
+}
+if ($env:GITHUB_REF -like 'refs/tags/*' -and $env:GITHUB_REF -cne "refs/tags/v$appVersion") { throw 'Release tag differs from application version.' }
 [xml]$versions = Get-Content -LiteralPath (Join-Path $Root 'build/DotNetRuntime.props') -Raw
 $required = $versions.Project.PropertyGroup.InstallerDesktopRuntimeVersion
 if ([version]$required -lt [version]'10.0.13') { throw 'Installer runtime predates the PKCS security fixes.' }
 $publish = Join-Path $Root 'installer/obj/publish'
+$appFile = Join-Path $publish 'Crestron Home Driver Feed Installer.dll'
+if ([Diagnostics.FileVersionInfo]::GetVersionInfo($appFile).FileVersion -cne "$appVersion.0") { throw 'Published application file version differs from source.' }
 $runtime = Get-Content -LiteralPath (Join-Path $publish 'Crestron Home Driver Feed Installer.runtimeconfig.json') -Raw | ConvertFrom-Json
 foreach ($name in @('Microsoft.NETCore.App', 'Microsoft.WindowsDesktop.App')) {
     $framework = @($runtime.runtimeOptions.frameworks | Where-Object name -CEQ $name)
@@ -49,6 +60,10 @@ if ($null -eq $searchData -or $searchData.GetAttribute('RuntimeType') -cne '2' -
 if ($package.GetAttribute('DetectCondition') -cne "DesktopRuntimeVersion >= v$required") { throw 'Compiled runtime detection does not enforce the minimum version.' }
 $filename = "windowsdesktop-runtime-$required-win-x64.exe"
 if ($payload.GetAttribute('FilePath') -cne $filename -or $payload.GetAttribute('DownloadUrl') -cne "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/$required/$filename") { throw 'Compiled runtime payload differs from the application prerequisite.' }
-@{ requiredRuntime=$required; sshPackage=$ssh[0]; compiledRuntimeDetection=$package.GetAttribute('DetectCondition'); bundleSha256=(Get-FileHash -LiteralPath $bundle -Algorithm SHA256).Hash } |
+if ($manifest.SelectSingleNode('/b:BurnManifest/b:Chain/b:MsiPackage', $namespaces).GetAttribute('Version') -cne $appVersion) { throw 'Compiled MSI version differs from application.' }
+$bundleVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($bundle)
+$numericBundleVersion = '{0}.{1}.{2}.{3}' -f $bundleVersion.FileMajorPart, $bundleVersion.FileMinorPart, $bundleVersion.FileBuildPart, $bundleVersion.FilePrivatePart
+if ($numericBundleVersion -cne "$appVersion.0" -or $manifest.SelectSingleNode('/b:BurnManifest/b:Registration', $namespaces).GetAttribute('Version') -cne $appVersion) { throw 'Compiled bootstrapper version differs from application.' }
+@{ applicationVersion=$appVersion; requiredRuntime=$required; sshPackage=$ssh[0]; compiledRuntimeDetection=$package.GetAttribute('DetectCondition'); bundleSha256=(Get-FileHash -LiteralPath $bundle -Algorithm SHA256).Hash } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $evidence 'verification.json') -Encoding utf8
 Write-Output "Verified application minimum runtime, SSH dependency, and compiled bootstrapper prerequisite: .NET $required."

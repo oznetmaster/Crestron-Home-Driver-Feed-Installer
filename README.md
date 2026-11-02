@@ -8,7 +8,7 @@ This repository also defines the **Crestron Home Driver NuGet Publishing Standar
 
 ## Public release status
 
-This project is intended for public GitHub release and community use.
+Download the Windows installer from the [latest GitHub release](https://github.com/oznetmaster/Crestron-Home-Driver-Feed-Installer/releases/latest). See the [changelog](CHANGELOG.md) for version history and the [release notes](RELEASE-NOTES.md) for the current update.
 
 Crestron Home Driver NuGet Publishing Standard v1 is **not** an official Crestron product, specification, certification program, or compatibility guarantee. It is an open source community standard for packaging and distributing Crestron Home driver `.pkg` files through NuGet.
 
@@ -44,8 +44,8 @@ Crestron Home Driver Feed Installer helps you:
 
 ### Runtime
 
-- Windows
-- .NET Desktop Runtime compatible with the release build
+- Windows x64
+- .NET 10 Desktop Runtime 10.0.14 or a later compatible .NET 10 patch (installed by the bootstrapper when needed)
 - network access to the target NuGet feed
 - network access to the target Crestron Home processor
 

@@ -46,7 +46,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Crestron Home Driver Feed Installer Release Assets
-          path: installer\bin\Release\Crestron Home Driver Feed Installer.exe
+          path: |
+            installer/bin/Release/Crestron Home Driver Feed Installer.exe
+            artifacts/runtime-prerequisite/**/verification.json
+          if-no-files-found: error
 
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.release_tag != ''
@@ -54,5 +57,5 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
           files: installer\bin\Release\Crestron Home Driver Feed Installer.exe
-          generate_release_notes: true
-          overwrite_files: true
+          body_path: RELEASE-NOTES.md
+          overwrite_files: false
