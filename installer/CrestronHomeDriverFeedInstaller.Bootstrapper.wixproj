@@ -3,6 +3,7 @@
   Licensed under the MIT License. See LICENSE file in the project root for full license information.
 -->
 <Project Sdk="WixToolset.Sdk/5.0.2">
+  <Import Project="../build/DotNetRuntime.props" />
   <PropertyGroup>
 	<OutputType>Bundle</OutputType>
 	<Platforms>AnyCPU;x64</Platforms>
@@ -11,14 +12,15 @@
 	<OutputName>Crestron Home Driver Feed Installer</OutputName>
 	<SetupProject>$(MSBuildThisFileDirectory)CrestronHomeDriverFeedInstaller.Setup.wixproj</SetupProject>
 	<SetupMsiPath>$(MSBuildThisFileDirectory)bin\$(Configuration)\Crestron Home Driver Feed Installer.msi</SetupMsiPath>
-	<DotNetDesktopRuntimeFileName>windowsdesktop-runtime-10.0.9-win-x64.exe</DotNetDesktopRuntimeFileName>
-	<DotNetDesktopRuntimeUrl>https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.9/windowsdesktop-runtime-10.0.9-win-x64.exe</DotNetDesktopRuntimeUrl>
+	<DotNetDesktopRuntimeFileName>windowsdesktop-runtime-$(InstallerDesktopRuntimeVersion)-win-x64.exe</DotNetDesktopRuntimeFileName>
+	<DotNetDesktopRuntimeUrl>https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/$(InstallerDesktopRuntimeVersion)/$(DotNetDesktopRuntimeFileName)</DotNetDesktopRuntimeUrl>
 	<DotNetDesktopRuntimePath>$(MSBuildThisFileDirectory)$(DotNetDesktopRuntimeFileName)</DotNetDesktopRuntimePath>
-	<DefineConstants>$(DefineConstants);SetupMsiPath=$(SetupMsiPath)</DefineConstants>
+	<DefineConstants>$(DefineConstants);SetupMsiPath=$(SetupMsiPath);DesktopRuntimeVersion=$(InstallerDesktopRuntimeVersion);DesktopRuntimeFileName=$(DotNetDesktopRuntimeFileName);DesktopRuntimeUrl=$(DotNetDesktopRuntimeUrl)</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
 	<PackageReference Include="WixToolset.Bal.wixext" Version="5.0.2" />
+	<PackageReference Include="WixToolset.Netfx.wixext" Version="5.0.2" />
 	</ItemGroup>
 
   <ItemGroup>

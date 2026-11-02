@@ -18,3 +18,5 @@ Available tasks:
 - `release-build-release-build-bootstrapper`
 
 The shared component rejects missing/stale/empty/failed declared TRX results and writes one receipt per invocation beneath `artifacts/build-automation/`. It does not publish packages or invoke live hardware tests. Existing specialized scripts remain authoritative.
+
+The bootstrapper build also verifies the generated application's minimum shared runtime, patched SSH dependency, and compiled bootstrapper runtime payload and detection settings. `build/DotNetRuntime.props` supplies the runtime version shared by the application and bootstrapper. This matters because WPF normally supplies PKCS from its shared Desktop Runtime.

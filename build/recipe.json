@@ -16,6 +16,15 @@
           "executable": "pwsh",
           "script": "build/steps/release-build-release-build-bootstrapper.ps1",
           "shell": "pwsh"
+        },
+        {
+          "executable": "pwsh",
+          "arguments": [
+            "-NoProfile",
+            "-NonInteractive",
+            "-File",
+            "build/Test-InstallerRuntime.ps1"
+          ]
         }
       ]
     }

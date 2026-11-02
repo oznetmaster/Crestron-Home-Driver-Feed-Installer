@@ -1,0 +1,7 @@
+<!-- Copyright (c) 2026 Neil Colvin. Licensed under the MIT License; see LICENSE. -->
+<Project>
+  <PropertyGroup>
+    <!-- Keep the application's minimum shared runtime and installer prerequisite aligned. -->
+    <InstallerDesktopRuntimeVersion>10.0.14</InstallerDesktopRuntimeVersion>
+  </PropertyGroup>
+</Project>
