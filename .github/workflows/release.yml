@@ -35,11 +35,13 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore .\CrestronHomeDriverFeedInstaller.slnx
-
+        uses: oznetmaster/BuildAutomation@ae6f311e530a18dc705971dcc655fc97de03e368
+        with:
+          task: release-build-release-restore
       - name: Build bootstrapper
-        run: dotnet build .\installer\CrestronHomeDriverFeedInstaller.Bootstrapper.wixproj -c Release
-
+        uses: oznetmaster/BuildAutomation@ae6f311e530a18dc705971dcc655fc97de03e368
+        with:
+          task: release-build-release-build-bootstrapper
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:

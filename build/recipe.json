@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "tasks": {
+    "release-build-release-restore": {
+      "commands": [
+        {
+          "executable": "pwsh",
+          "script": "build/steps/release-build-release-restore.ps1",
+          "shell": "pwsh"
+        }
+      ]
+    },
+    "release-build-release-build-bootstrapper": {
+      "commands": [
+        {
+          "executable": "pwsh",
+          "script": "build/steps/release-build-release-build-bootstrapper.ps1",
+          "shell": "pwsh"
+        }
+      ]
+    }
+  }
+}
